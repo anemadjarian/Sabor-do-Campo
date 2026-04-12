@@ -6,11 +6,11 @@ A proposta do sistema é oferecer uma experiência simples e intuitiva, onde o c
 ---
 
 ## Integrantes  
-- Ane Madjarian Viana - SYNC
-- Fábio Garcia Martins - KERNEL
-- Lucas Lopes Freitas Moura - KERNEL
-- Marcos Vinícius Nunes Reis - KERNEL
-- Tatielle Fernandes Dias - AURA
+- Ane Madjarian Viana - PO
+- Fábio Garcia Martins - Desenvlvedor 
+- Lucas Lopes Freitas Moura - Desenvolvedor
+- Marcos Vinícius Nunes Reis - Desenvolvedor
+- Tatielle Fernandes Dias - Product Designer
 
 ---
 
