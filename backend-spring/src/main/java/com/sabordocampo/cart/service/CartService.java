@@ -5,6 +5,8 @@ import com.sabordocampo.cart.domain.CartItem;
 import com.sabordocampo.cart.domain.ShoppingCart;
 import com.sabordocampo.menu.domain.MenuItem;
 import com.sabordocampo.menu.repository.MenuItemRepository;
+import com.sabordocampo.user.domain.User;
+import com.sabordocampo.user.repository.UserRepository;
 import com.sabordocampo.cart.dto.AddressResponse;
 import com.sabordocampo.cart.dto.CartItemRequest;
 import com.sabordocampo.cart.dto.CartItemResponse;
@@ -21,56 +23,69 @@ import org.springframework.transaction.annotation.Transactional;
 public class CartService {
     private final CartItemRepository cartItemRepository;
     private final MenuItemRepository menuItemRepository;
+    private final UserRepository userRepository;
     private final ShoppingCartRepository shoppingCartRepository;
 
-    public CartService(CartItemRepository cartItemRepository, MenuItemRepository menuItemRepository, ShoppingCartRepository shoppingCartRepository) {
+    public CartService(CartItemRepository cartItemRepository, MenuItemRepository menuItemRepository,
+        UserRepository userRepository, ShoppingCartRepository shoppingCartRepository) {
         this.cartItemRepository = cartItemRepository;
         this.menuItemRepository = menuItemRepository;
+        this.userRepository = userRepository;
         this.shoppingCartRepository = shoppingCartRepository;
     }
 
     @Transactional(readOnly = true)
-    public ShoppingCartResponse getCart(Long cartId) {
-        return shoppingCartRepository.findById(cartId)
-            .map(this::toShoppingCartResponse)
+    public ShoppingCart getCart(String email) {
+        return shoppingCartRepository.findByUserEmail(email)
+            .orElseGet(() -> {
+                ShoppingCart cart = new ShoppingCart();
+                User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                cart.setUser(user);
+                return shoppingCartRepository.save(cart);
+            });
+    }
+    
+
+    @Transactional(readOnly = true)
+    public ShoppingCartResponse getMyCart(String email) {
+        ShoppingCart cart = shoppingCartRepository.findByUserEmail(email)
             .orElseThrow(() -> new RuntimeException("Carrinho não encontrado"));
+
+        return toShoppingCartResponse(cart);
     }
 
     @Transactional(readOnly = true)
-    public List<CartItemResponse> listCartItems(Long cartId) {  
-        List<CartItem> items = cartItemRepository.findByShoppingCartId(cartId);
+    public List<CartItemResponse> listCartItems(String email) {  
+        ShoppingCart cart = getCart(email);
 
-        return items.stream().map(this::toCartItemResponse).toList();
+        return cart.getItems().stream().map(this::toCartItemResponse).toList();
     }
 
     @Transactional
-    public CartItemResponse createCartItem(Long cartId, CartItemRequest request) {
-        ShoppingCart shoppingCart = shoppingCartRepository.findById(cartId)
-            .orElseThrow(() -> new RuntimeException("Carrinho não encontrado"));
+    public CartItemResponse createCartItem(String email, CartItemRequest request) {
+        ShoppingCart shoppingCart = getCart(email);
         MenuItem menuItem = menuItemRepository.findById(request.menuItemId())
             .orElseThrow(() -> new RuntimeException("Item original do menu não encontrado"));
-        CartItem cartItem = new CartItem(
-            shoppingCart,
-            menuItem
-        );
+        CartItem cartItem = new CartItem(shoppingCart, menuItem);
 
         return toCartItemResponse(cartItemRepository.save(cartItem));
     }
 
     @Transactional
-    public void removeCartItem(Long cartId, Long itemId) {
-        CartItem cartItem = cartItemRepository.findById(itemId)
-        .orElseThrow(() -> new RuntimeException("Item do carrinho não encontrado"));
-        if (!cartItem.getShoppingCart().getId().equals(cartId)) {
+    public void removeCartItem(String email, Long itemId) {
+        ShoppingCart cart = getCart(email);
+        CartItem item = cartItemRepository.findById(itemId)
+            .orElseThrow(() -> new RuntimeException("Item não encontrado"));
+        if (!item.getShoppingCart().getId().equals(cart.getId())) {
             throw new RuntimeException("Item não pertence ao carrinho");
         }
-        cartItemRepository.delete(cartItem);
+        cartItemRepository.delete(item);
     }
 
     @Transactional
-    public void updateAddress(Long cartId, Address address) {
-        ShoppingCart cart = shoppingCartRepository.findById(cartId)
-        .orElseThrow(() -> new RuntimeException("Carrinho não encontrado"));
+    public void updateAddress(String email, Address address) {
+        ShoppingCart cart = getCart(email);
         cart.setAddress(address);
         shoppingCartRepository.save(cart);
     }

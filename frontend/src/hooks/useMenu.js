@@ -10,7 +10,7 @@ export function useMenu() {
 
   const loadCategories = useCallback(async () => {
     const data = await fetchCategories();
-    setCategories(data);
+    setCategories(data ?? []);
   }, []);
 
   const loadItems = useCallback(async (category = '') => {
@@ -19,7 +19,7 @@ export function useMenu() {
 
     try {
       const data = await fetchMenuItems(category);
-      setItems(data);
+      setItems(data ?? []);
     } catch (loadError) {
       setError(loadError.message);
     } finally {

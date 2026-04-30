@@ -5,9 +5,9 @@ import com.sabordocampo.cart.dto.CartItemRequest;
 import com.sabordocampo.cart.dto.CartItemResponse;
 import com.sabordocampo.cart.dto.ShoppingCartResponse;
 import com.sabordocampo.cart.service.CartService;
-import jakarta.validation.Valid;
 import java.util.List;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,28 +28,29 @@ public class CartController {
         this.cartService = cartService;
     }
 
-    @GetMapping("/carts/{cartId}")
-    public ShoppingCartResponse getCart(@PathVariable Long cartId) {
-        return cartService.getCart(cartId);
+    @GetMapping("/carts/me")
+    public ShoppingCartResponse getCart(Authentication authentication) {
+        String email = authentication.getName();
+        return cartService.getMyCart(email);
     }
 
     @GetMapping("/carts/{cartId}/items")
-    public List<CartItemResponse> listCartItems(@PathVariable Long cartId) {
-        return cartService.listCartItems(cartId);
+    public List<CartItemResponse> listCartItems(Authentication authentication) {
+        return cartService.listCartItems(authentication.getName());
     }
 
-    @PostMapping("/carts/{cartId}/items")
-    public CartItemResponse createCartItem(@PathVariable Long cartId, @Valid @RequestBody CartItemRequest request) {
-        return cartService.createCartItem(cartId, request);
+    @PostMapping("/carts/me/items")
+    public CartItemResponse createCartItem(Authentication authentication, @RequestBody CartItemRequest request) {
+        return cartService.createCartItem(authentication.getName(), request);
     }
 
-    @DeleteMapping("carts/{cartId}/items/{itemId}")
-    public void removeCartItem(@PathVariable Long cartId, @PathVariable Long itemId) {
-        cartService.removeCartItem(cartId, itemId);
+    @DeleteMapping("carts/me/items/{itemId}")
+    public void removeCartItem(Authentication authentication, @PathVariable Long itemId) {
+        cartService.removeCartItem(authentication.getName(), itemId);
     }
 
-    @PutMapping("/carts/{cartId}/address")
-    public void updateAddress(@PathVariable Long cartId, @RequestBody Address address) {
-        cartService.updateAddress(cartId, address);
+    @PutMapping("/carts/me/address")
+    public void updateAddress(Authentication authentication, @RequestBody Address address) {
+        cartService.updateAddress(authentication.getName(), address);
     }
 }

@@ -14,6 +14,7 @@ function MenuPage({
   onRetry,
 }) {
   const [search, setSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const groupedItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -38,6 +39,20 @@ function MenuPage({
   }, [items, search]);
 
   const sections = Object.entries(groupedItems);
+
+  const handleOpenConfirm = (item) => {
+    setSelectedItem(item);
+  };
+
+  const handleCloseConfirm = () => {
+    setSelectedItem(null);
+  };
+
+  const handleConfirmAdd = () => {
+    if (!selectedItem) return;
+    onAddToCart(selectedItem);
+    setSelectedItem(null);
+  };
 
   return (
     <section className="hero-card">
@@ -88,7 +103,7 @@ function MenuPage({
 
                 <div className="menu-grid">
                   {sectionItems.map((item) => (
-                    <MenuItemCard key={item.id} item={item} onAddToCart={onAddToCart} />
+                    <MenuItemCard key={item.id} item={item} onAddToCart={handleOpenConfirm} />
                   ))}
                 </div>
               </section>
@@ -96,6 +111,45 @@ function MenuPage({
           </div>
         ) : null}
       </div>
+
+      {selectedItem ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar prato">
+          <div className="modal-content menu-confirm-modal">
+            <h3>Deseja selecionar este prato?</h3>
+            <p className="menu-confirm-type">Tipo: {selectedItem.categoryLabel}</p>
+            <div className="menu-confirm-image-wrap">
+              {selectedItem.imageUrl ? (
+                <img
+                  className="menu-confirm-image"
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.name}
+                />
+              ) : (
+                <div className="menu-confirm-image-placeholder">Sem foto</div>
+              )}
+            </div>
+            <p className="menu-confirm-name">{selectedItem.name}</p>
+            <p className="menu-confirm-description">{selectedItem.description}</p>
+            {selectedItem.ingredients.length > 0 ? (
+              <p className="menu-confirm-description">
+                Ingredientes: {selectedItem.ingredients.join(', ')}
+              </p>
+            ) : null}
+            <p className="menu-confirm-price">
+              R$ {Number(selectedItem.price).toFixed(2).replace('.', ',')}
+            </p>
+
+            <div className="modal-actions">
+              <button type="button" onClick={handleConfirmAdd}>
+                Adicionar
+              </button>
+              <button type="button" onClick={handleCloseConfirm}>
+                Voltar ao cardapio
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

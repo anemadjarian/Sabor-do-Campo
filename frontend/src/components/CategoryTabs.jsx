@@ -1,4 +1,4 @@
-function CategoryTabs({ categories, selectedCategory, onChange }) {
+function CategoryTabs({ categories = [], selectedCategory, onChange }) {
   return (
     <div className="category-tabs" role="tablist" aria-label="Categorias do cardapio">
       <button

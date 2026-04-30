@@ -6,20 +6,47 @@ import { updateCartAddress } from '../services/cartService';
 function ShoppingCartPage({
   items,
   address,
+  isLoggedIn,
+  onRequireLogin,
   onAddressUpdate,
-  onRemoveItem
+  onRemoveItem,
+  onConfirmarPedido
 }) {
 
   const [showModal, setShowModal] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const DEFAULT_SHIPPING_PRICE = 10
     
   const total = items.reduce((sum, item) => sum + item.price, 0) + DEFAULT_SHIPPING_PRICE;
 
   async function handleSaveAddress(newAddress) {
-    await updateCartAddress(1, newAddress);
+    if (!isLoggedIn) {
+      alert('Voce precisa estar logado para cadastrar endereco.');
+      onRequireLogin?.();
+      return;
+    }
+
+    await updateCartAddress(newAddress)
     onAddressUpdate(newAddress);
     setShowModal(false);
+  }
+
+  async function handleConfirmarPedido() {
+    if (!isLoggedIn) {
+      alert('Voce precisa estar logado para confirmar o pedido.');
+      onRequireLogin?.();
+      return;
+    }
+
+    try {
+      setIsConfirming(true);
+      await onConfirmarPedido();
+    } catch (err) {
+      alert(err.message || 'Nao foi possivel confirmar o pedido.');
+    } finally {
+      setIsConfirming(false);
+    }
   }
 
   function formatAddress(address) {
@@ -64,6 +91,9 @@ function ShoppingCartPage({
             <h3>Total (R$ {DEFAULT_SHIPPING_PRICE.toFixed(2).replace('.', ',')} de Frete)</h3>
             <strong>R$ {total.toFixed(2).replace('.', ',')}</strong>
           </div>
+          <button className="edit-address-button" onClick={handleConfirmarPedido} disabled={isConfirming}>
+            {!isLoggedIn ? 'Entrar para confirmar pedido' : isConfirming ? 'Confirmando...' : 'Confirmar pedido'}
+          </button>
         </>
       )}
       </div>
