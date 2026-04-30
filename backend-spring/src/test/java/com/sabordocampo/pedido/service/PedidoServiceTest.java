@@ -17,6 +17,8 @@ import com.sabordocampo.pedido.domain.PedidoStatus;
 import com.sabordocampo.pedido.dto.PedidoResponse;
 import com.sabordocampo.pedido.dto.PedidoStatusResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
+import com.sabordocampo.user.domain.Role;
+import com.sabordocampo.user.domain.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -43,6 +45,7 @@ class PedidoServiceTest {
     @Test
     void criarAPartirDoCarrinhoDeveCriarPedidoEEsvaziarCarrinho() {
         ShoppingCart carrinho = new ShoppingCart();
+        carrinho.setUser(user("cliente@sabor.com"));
         carrinho.setAddress(new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", "Apto 1"));
 
         MenuItem prato = new MenuItem("Prato Executivo", "Desc", new BigDecimal("25.00"), Category.PRATO_PRINCIPAL, "Ingredientes", "  https://img/prato.jpg  ");
@@ -58,7 +61,7 @@ class PedidoServiceTest {
         when(pedidoRepository.existsByCodigo(any())).thenReturn(false);
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        PedidoResponse response = pedidoService.criarAPartirDoCarrinho(1L);
+        PedidoResponse response = pedidoService.criarAPartirDoCarrinho(1L, "cliente@sabor.com");
 
         assertThat(response.codigo()).startsWith("PED-");
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_FEITO);
@@ -73,6 +76,8 @@ class PedidoServiceTest {
         assertThat(pedidoSalvo.getEnderecoEntrega()).isNotNull();
         assertThat(pedidoSalvo.getEnderecoEntrega()).isNotSameAs(carrinho.getAddress());
         assertThat(pedidoSalvo.getEnderecoEntrega().getStreet()).isEqualTo("Rua A");
+        assertThat(pedidoSalvo.getUser()).isNotNull();
+        assertThat(pedidoSalvo.getUser().getEmail()).isEqualTo("cliente@sabor.com");
 
         assertThat(carrinho.getItems()).isEmpty();
     }
@@ -80,10 +85,11 @@ class PedidoServiceTest {
     @Test
     void criarAPartirDoCarrinhoDeveFalharQuandoCarrinhoVazio() {
         ShoppingCart carrinho = new ShoppingCart();
+        carrinho.setUser(user("cliente@sabor.com"));
         carrinho.setAddress(new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", null));
         when(shoppingCartRepository.findById(1L)).thenReturn(Optional.of(carrinho));
 
-        assertThatThrownBy(() -> pedidoService.criarAPartirDoCarrinho(1L))
+        assertThatThrownBy(() -> pedidoService.criarAPartirDoCarrinho(1L, "cliente@sabor.com"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Carrinho vazio. Adicione itens antes de confirmar.");
     }
@@ -91,21 +97,38 @@ class PedidoServiceTest {
     @Test
     void criarAPartirDoCarrinhoDeveFalharQuandoEnderecoNaoInformado() {
         ShoppingCart carrinho = new ShoppingCart();
+        carrinho.setUser(user("cliente@sabor.com"));
         MenuItem prato = new MenuItem("Prato", "Desc", new BigDecimal("10.00"), Category.PRATO_PRINCIPAL, "Ingredientes", "img");
         carrinho.getItems().add(new CartItem(carrinho, prato));
         when(shoppingCartRepository.findById(1L)).thenReturn(Optional.of(carrinho));
 
-        assertThatThrownBy(() -> pedidoService.criarAPartirDoCarrinho(1L))
+        assertThatThrownBy(() -> pedidoService.criarAPartirDoCarrinho(1L, "cliente@sabor.com"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Informe o endereco de entrega antes de confirmar.");
     }
 
     @Test
+    void criarAPartirDoCarrinhoDeveFalharQuandoCarrinhoPertenceAOutroUsuario() {
+        ShoppingCart carrinho = new ShoppingCart();
+        carrinho.setUser(user("outro@sabor.com"));
+        carrinho.setAddress(new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", null));
+
+        MenuItem prato = new MenuItem("Prato", "Desc", new BigDecimal("10.00"), Category.PRATO_PRINCIPAL, "Ingredientes", "img");
+        carrinho.getItems().add(new CartItem(carrinho, prato));
+
+        when(shoppingCartRepository.findById(1L)).thenReturn(Optional.of(carrinho));
+
+        assertThatThrownBy(() -> pedidoService.criarAPartirDoCarrinho(1L, "cliente@sabor.com"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Carrinho nao pertence ao usuario autenticado.");
+    }
+
+    @Test
     void buscarStatusDeveRetornarPedidoFeitoQuandoMenosDeUmMinuto() {
         Pedido pedido = new Pedido("PED-AAAA1111", LocalDateTime.now().minusSeconds(30), endereco());
-        when(pedidoRepository.findById(10L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdAndUserEmail(10L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
-        PedidoStatusResponse response = pedidoService.buscarStatus(10L);
+        PedidoStatusResponse response = pedidoService.buscarStatus(10L, "cliente@sabor.com");
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_FEITO);
     }
@@ -113,9 +136,9 @@ class PedidoServiceTest {
     @Test
     void buscarStatusDeveRetornarPedidoEmPreparoEntreUmEDoisMinutos() {
         Pedido pedido = new Pedido("PED-BBBB2222", LocalDateTime.now().minusSeconds(90), endereco());
-        when(pedidoRepository.findById(20L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdAndUserEmail(20L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
-        PedidoStatusResponse response = pedidoService.buscarStatus(20L);
+        PedidoStatusResponse response = pedidoService.buscarStatus(20L, "cliente@sabor.com");
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_EM_PREPARO);
     }
@@ -123,9 +146,9 @@ class PedidoServiceTest {
     @Test
     void buscarStatusDeveRetornarPedidoEmRotaAposDoisMinutos() {
         Pedido pedido = new Pedido("PED-CCCC3333", LocalDateTime.now().minusMinutes(3), endereco());
-        when(pedidoRepository.findById(30L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdAndUserEmail(30L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
-        PedidoStatusResponse response = pedidoService.buscarStatus(30L);
+        PedidoStatusResponse response = pedidoService.buscarStatus(30L, "cliente@sabor.com");
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
     }
@@ -133,9 +156,9 @@ class PedidoServiceTest {
     @Test
     void confirmarEntregaDeveAtualizarStatusParaEntregue() {
         Pedido pedido = new Pedido("PED-DDDD4444", LocalDateTime.now().minusMinutes(1), endereco());
-        when(pedidoRepository.findById(40L)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdAndUserEmail(40L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
-        PedidoStatusResponse response = pedidoService.confirmarEntrega(40L);
+        PedidoStatusResponse response = pedidoService.confirmarEntrega(40L, "cliente@sabor.com");
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_ENTREGUE);
         assertThat(pedido.getEntregueEm()).isNotNull();
@@ -143,5 +166,12 @@ class PedidoServiceTest {
 
     private Address endereco() {
         return new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", null);
+    }
+
+    private User user(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setRole(Role.ROLE_USER);
+        return user;
     }
 }

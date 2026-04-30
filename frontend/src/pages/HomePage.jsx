@@ -84,7 +84,7 @@ function HomePage({ onGoToMenu }) {
       </div>
 
       <button type="button" className="landing-cta" onClick={onGoToMenu}>
-        Faca seu Pedido
+        Faça seu Pedido
       </button>
     </section>
   );

@@ -32,9 +32,13 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoResponse criarAPartirDoCarrinho(Long cartId) {
+    public PedidoResponse criarAPartirDoCarrinho(Long cartId, String email) {
         ShoppingCart carrinho = shoppingCartRepository.findById(cartId)
             .orElseThrow(() -> new IllegalArgumentException("Carrinho nao encontrado."));
+
+        if (carrinho.getUser() == null || !email.equals(carrinho.getUser().getEmail())) {
+            throw new IllegalArgumentException("Carrinho nao pertence ao usuario autenticado.");
+        }
 
         if (carrinho.getItems().isEmpty()) {
             throw new IllegalArgumentException("Carrinho vazio. Adicione itens antes de confirmar.");
@@ -49,6 +53,7 @@ public class PedidoService {
             LocalDateTime.now(),
             copiarEndereco(carrinho.getAddress())
         );
+        pedido.setUser(carrinho.getUser());
 
         for (CartItem cartItem : carrinho.getItems()) {
             PedidoItem pedidoItem = new PedidoItem(
@@ -68,8 +73,8 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
-    public PedidoStatusResponse buscarStatus(Long pedidoId) {
-        Pedido pedido = pedidoRepository.findById(pedidoId)
+    public PedidoStatusResponse buscarStatus(Long pedidoId, String email) {
+        Pedido pedido = pedidoRepository.findByIdAndUserEmail(pedidoId, email)
             .orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado."));
 
         return new PedidoStatusResponse(
@@ -80,8 +85,8 @@ public class PedidoService {
     }
 
     @Transactional
-    public PedidoStatusResponse confirmarEntrega(Long pedidoId) {
-        Pedido pedido = pedidoRepository.findById(pedidoId)
+    public PedidoStatusResponse confirmarEntrega(Long pedidoId, String email) {
+        Pedido pedido = pedidoRepository.findByIdAndUserEmail(pedidoId, email)
             .orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado."));
 
         pedido.confirmarEntrega(LocalDateTime.now());

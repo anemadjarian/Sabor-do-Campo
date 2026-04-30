@@ -1,6 +1,7 @@
 package com.sabordocampo.pedido.web;
 
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sabordocampo.cart.dto.AddressResponse;
+import com.sabordocampo.auth.service.JwtService;
 import com.sabordocampo.pedido.domain.PedidoStatus;
 import com.sabordocampo.pedido.dto.PedidoItemResponse;
 import com.sabordocampo.pedido.dto.PedidoResponse;
@@ -18,11 +20,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(PedidoController.class)
+@WebMvcTest(
+    controllers = PedidoController.class,
+    excludeAutoConfiguration = {SecurityAutoConfiguration.class, SecurityFilterAutoConfiguration.class}
+)
+@AutoConfigureMockMvc(addFilters = false)
 class PedidoControllerTest {
 
     @Autowired
@@ -30,6 +41,12 @@ class PedidoControllerTest {
 
     @MockBean
     private PedidoService pedidoService;
+
+    @MockBean
+    private JwtService jwtService;
+
+    @MockBean
+    private UserDetailsService userDetailsService;
 
     @Test
     void confirmarPedidoDeveRetornarPedidoCriado() throws Exception {
@@ -43,9 +60,10 @@ class PedidoControllerTest {
             new BigDecimal("25.00")
         );
 
-        when(pedidoService.criarAPartirDoCarrinho(99L)).thenReturn(response);
+        when(pedidoService.criarAPartirDoCarrinho(99L, "cliente@sabor.com")).thenReturn(response);
 
-        mockMvc.perform(post("/api/carts/99/confirmar-pedido"))
+        mockMvc.perform(post("/api/carts/99/confirmar-pedido")
+            .principal(new UsernamePasswordAuthenticationToken("cliente@sabor.com", "")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.codigo").value("PED-ABC12345"))
@@ -56,9 +74,11 @@ class PedidoControllerTest {
 
     @Test
     void buscarStatusDeveRetornarStatusAtual() throws Exception {
-        when(pedidoService.buscarStatus(10L)).thenReturn(new PedidoStatusResponse(10L, "PED-XYZ98765", PedidoStatus.PEDIDO_EM_PREPARO));
+        when(pedidoService.buscarStatus(10L, "cliente@sabor.com"))
+            .thenReturn(new PedidoStatusResponse(10L, "PED-XYZ98765", PedidoStatus.PEDIDO_EM_PREPARO));
 
-        mockMvc.perform(get("/api/pedidos/10/status"))
+        mockMvc.perform(get("/api/pedidos/10/status")
+            .principal(new UsernamePasswordAuthenticationToken("cliente@sabor.com", "")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.pedidoId").value(10))
             .andExpect(jsonPath("$.codigo").value("PED-XYZ98765"))
@@ -67,18 +87,22 @@ class PedidoControllerTest {
 
     @Test
     void confirmarEntregaDeveRetornarStatusEntregue() throws Exception {
-        when(pedidoService.confirmarEntrega(77L)).thenReturn(new PedidoStatusResponse(77L, "PED-ENTREGUE", PedidoStatus.PEDIDO_ENTREGUE));
+        when(pedidoService.confirmarEntrega(77L, "cliente@sabor.com"))
+            .thenReturn(new PedidoStatusResponse(77L, "PED-ENTREGUE", PedidoStatus.PEDIDO_ENTREGUE));
 
-        mockMvc.perform(post("/api/pedidos/77/confirmar-entrega"))
+        mockMvc.perform(post("/api/pedidos/77/confirmar-entrega")
+            .principal(new UsernamePasswordAuthenticationToken("cliente@sabor.com", "")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("PEDIDO_ENTREGUE"));
     }
 
     @Test
     void deveRetornarBadRequestQuandoServicoLancarIllegalArgument() throws Exception {
-        when(pedidoService.buscarStatus(anyLong())).thenThrow(new IllegalArgumentException("Pedido nao encontrado."));
+        when(pedidoService.buscarStatus(anyLong(), eq("cliente@sabor.com")))
+            .thenThrow(new IllegalArgumentException("Pedido nao encontrado."));
 
-        mockMvc.perform(get("/api/pedidos/123/status"))
+        mockMvc.perform(get("/api/pedidos/123/status")
+            .principal(new UsernamePasswordAuthenticationToken("cliente@sabor.com", "")))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Pedido nao encontrado."));
     }

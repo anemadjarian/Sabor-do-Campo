@@ -25,7 +25,7 @@ async function request(path, options = {}) {
 
 
 export function createUser(data) {
-  return request(`/users`, {
+  return request(`/auth/register`, {
     method: "POST",
     body: JSON.stringify(data),
   });

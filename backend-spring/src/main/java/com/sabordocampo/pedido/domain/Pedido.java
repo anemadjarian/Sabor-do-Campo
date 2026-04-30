@@ -1,6 +1,7 @@
 package com.sabordocampo.pedido.domain;
 
 import com.sabordocampo.cart.domain.Address;
+import com.sabordocampo.user.domain.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -8,6 +9,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -34,6 +37,10 @@ public class Pedido {
 
     @Column
     private LocalDateTime entregueEm;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> itens = new ArrayList<>();
@@ -69,6 +76,14 @@ public class Pedido {
 
     public List<PedidoItem> getItens() {
         return itens;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public void adicionarItem(PedidoItem item) {

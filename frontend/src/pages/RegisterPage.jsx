@@ -18,8 +18,9 @@ function RegisterPage({ onNavigate }) {
     try {
       await createUser(form);
       setStatus({ type: "success", message: "Conta criada com sucesso!" });
+      onNavigate('login');
     } catch (err) {
-      setStatus({ type: "error", message: "Erro ao criar conta" });
+      setStatus({ type: "error", message: err.message || "Erro ao criar conta" });
     }
   }
 
