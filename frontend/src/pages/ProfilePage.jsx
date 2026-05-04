@@ -50,7 +50,7 @@ function ProfilePage({ onNavigate, onLogout }) {
     } catch (err) {
       setStatus({
         type: "error",
-        message: "Erro ao atualizar perfil"
+        message: err.message || "Erro ao atualizar perfil"
       });
     }
   }

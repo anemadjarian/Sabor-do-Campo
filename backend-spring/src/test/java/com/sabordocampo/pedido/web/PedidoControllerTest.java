@@ -57,7 +57,10 @@ class PedidoControllerTest {
             PedidoStatus.PEDIDO_FEITO,
             List.of(new PedidoItemResponse(1L, 10L, "Prato Executivo", new BigDecimal("25.00"), "img")),
             new AddressResponse("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", "Apto 1"),
-            new BigDecimal("25.00")
+            new BigDecimal("25.00"),
+            2L,
+            "Cliente",
+            "cliente@sabor.com"
         );
 
         when(pedidoService.criarAPartirDoCarrinho(99L, "cliente@sabor.com")).thenReturn(response);

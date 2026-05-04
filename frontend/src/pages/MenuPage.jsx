@@ -11,6 +11,8 @@ function MenuPage({
   selectedCategory,
   onCategoryChange,
   onAddToCart,
+  onRequireLogin,
+  isLoggedIn,
   onRetry,
 }) {
   const [search, setSearch] = useState('');
@@ -41,6 +43,11 @@ function MenuPage({
   const sections = Object.entries(groupedItems);
 
   const handleOpenConfirm = (item) => {
+    if (!isLoggedIn) {
+      onRequireLogin();
+      return;
+    }
+
     setSelectedItem(item);
   };
 

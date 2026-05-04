@@ -15,6 +15,7 @@ import com.sabordocampo.menu.domain.MenuItem;
 import com.sabordocampo.pedido.domain.Pedido;
 import com.sabordocampo.pedido.domain.PedidoStatus;
 import com.sabordocampo.pedido.dto.PedidoResponse;
+import com.sabordocampo.pedido.dto.PedidoStatusRequest;
 import com.sabordocampo.pedido.dto.PedidoStatusResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
 import com.sabordocampo.user.domain.Role;
@@ -134,8 +135,9 @@ class PedidoServiceTest {
     }
 
     @Test
-    void buscarStatusDeveRetornarPedidoEmPreparoEntreUmEDoisMinutos() {
+    void buscarStatusDeveRetornarStatusPersistidoEmPreparo() {
         Pedido pedido = new Pedido("PED-BBBB2222", LocalDateTime.now().minusSeconds(90), endereco());
+        pedido.setStatus(PedidoStatus.PEDIDO_EM_PREPARO);
         when(pedidoRepository.findByIdAndUserEmail(20L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
         PedidoStatusResponse response = pedidoService.buscarStatus(20L, "cliente@sabor.com");
@@ -144,8 +146,9 @@ class PedidoServiceTest {
     }
 
     @Test
-    void buscarStatusDeveRetornarPedidoEmRotaAposDoisMinutos() {
+    void buscarStatusDeveRetornarStatusPersistidoEmRota() {
         Pedido pedido = new Pedido("PED-CCCC3333", LocalDateTime.now().minusMinutes(3), endereco());
+        pedido.setStatus(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
         when(pedidoRepository.findByIdAndUserEmail(30L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
         PedidoStatusResponse response = pedidoService.buscarStatus(30L, "cliente@sabor.com");
@@ -162,6 +165,20 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_ENTREGUE);
         assertThat(pedido.getEntregueEm()).isNotNull();
+    }
+
+    @Test
+    void atualizarStatusDevePermitirAdminAlterarPedido() {
+        Pedido pedido = new Pedido("PED-EEEE5555", LocalDateTime.now(), endereco());
+        when(pedidoRepository.findById(50L)).thenReturn(Optional.of(pedido));
+
+        PedidoResponse response = pedidoService.atualizarStatus(
+            50L,
+            new PedidoStatusRequest(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA)
+        );
+
+        assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
+        assertThat(pedido.getStatus()).isEqualTo(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
     }
 
     private Address endereco() {

@@ -4,6 +4,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sabordocampo.user.dto.UserRequest;
 import com.sabordocampo.user.dto.UserResponse;
 import com.sabordocampo.user.service.UserService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -34,9 +37,24 @@ public class UserController {
         return userService.createUser(request);
     }
 
-    @DeleteMapping("users/me")
+    @GetMapping("/users")
+    public List<UserResponse> listUsers() {
+        return userService.listUsers();
+    }
+
+    @GetMapping("/users/{id}")
+    public UserResponse getUserById(@PathVariable Long id) {
+        return userService.getUserById(id);
+    }
+
+    @DeleteMapping("/users/me")
     public void removeUser(Authentication authentication) {
         userService.removeUser(authentication.getName());
+    }
+
+    @DeleteMapping("/users/{id}")
+    public void removeUserById(@PathVariable Long id) {
+        userService.removeUserById(id);
     }
 
     @PutMapping("/users/me")
