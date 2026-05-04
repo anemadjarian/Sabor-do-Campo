@@ -10,9 +10,9 @@ import com.sabordocampo.pedido.domain.PedidoItem;
 import com.sabordocampo.pedido.domain.PedidoStatus;
 import com.sabordocampo.pedido.dto.PedidoItemResponse;
 import com.sabordocampo.pedido.dto.PedidoResponse;
+import com.sabordocampo.pedido.dto.PedidoStatusRequest;
 import com.sabordocampo.pedido.dto.PedidoStatusResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +54,7 @@ public class PedidoService {
             copiarEndereco(carrinho.getAddress())
         );
         pedido.setUser(carrinho.getUser());
+        pedido.setStatus(PedidoStatus.PEDIDO_FEITO);
 
         for (CartItem cartItem : carrinho.getItems()) {
             PedidoItem pedidoItem = new PedidoItem(
@@ -98,20 +99,52 @@ public class PedidoService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> listarMeusPedidos(String email) {
+        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
+            .map(this::toPedidoResponse)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PedidoResponse buscarPedidoAtivo(String email) {
+        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
+            .filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
+            .findFirst()
+            .map(this::toPedidoResponse)
+            .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> listarTodos() {
+        return pedidoRepository.findAllByOrderByCriadoEmDesc().stream()
+            .map(this::toPedidoResponse)
+            .toList();
+    }
+
+    @Transactional
+    public PedidoResponse atualizarStatus(Long pedidoId, PedidoStatusRequest request) {
+        if (request.status() == null) {
+            throw new IllegalArgumentException("Status e obrigatorio.");
+        }
+
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+            .orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado."));
+
+        pedido.setStatus(request.status());
+        return toPedidoResponse(pedido);
+    }
+
     private PedidoStatus calcularStatus(Pedido pedido) {
+        if (pedido.getStatus() != null) {
+            return pedido.getStatus();
+        }
+
         if (pedido.getEntregueEm() != null) {
             return PedidoStatus.PEDIDO_ENTREGUE;
         }
 
-        long minutos = Duration.between(pedido.getCriadoEm(), LocalDateTime.now()).toMinutes();
-
-        if (minutos < 1) {
-            return PedidoStatus.PEDIDO_FEITO;
-        }
-        if (minutos < 2) {
-            return PedidoStatus.PEDIDO_EM_PREPARO;
-        }
-        return PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA;
+        return PedidoStatus.PEDIDO_FEITO;
     }
 
     private PedidoResponse toPedidoResponse(Pedido pedido) {
@@ -126,7 +159,10 @@ public class PedidoService {
             calcularStatus(pedido),
             itens,
             toAddressResponse(pedido.getEnderecoEntrega()),
-            pedido.getPrecoTotal()
+            pedido.getPrecoTotal(),
+            pedido.getUser() == null ? null : pedido.getUser().getId(),
+            pedido.getUser() == null ? "Usuario removido" : pedido.getUser().getName(),
+            pedido.getUser() == null ? "" : pedido.getUser().getEmail()
         );
     }
 
