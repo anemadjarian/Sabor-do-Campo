@@ -26,7 +26,7 @@ function HomePage({ onGoToMenu }) {
     <section className="landing-card">
       <div className="landing-copy">
      
-        <h2>🌿 Bem-vindo ao Sabor do Campo</h2>
+        <h2> Bem-vindo ao Sabor do Campo</h2>
 
         <div className="landing-story">
           

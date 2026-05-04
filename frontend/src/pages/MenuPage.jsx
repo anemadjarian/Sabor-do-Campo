@@ -57,11 +57,10 @@ function MenuPage({
   return (
     <section className="hero-card">
       <div className="hero-copy">
-        <p className="eyebrow">Sabores do Campo</p>
-        <h2>Cardapio do Produto</h2>
+        <p className="eyebrow">Sabor do Campo</p>
+        <h2>Cardapio</h2>
         <p>
-          Uma vitrine leve e elegante para entradas, pratos principais, sobremesas e
-          bebidas, inspirada no visual organico da sua referencia.
+        Um cardápio variado, leve  cuidadosamente elaborado para oferecer uma experiência gastronômica completa, com opções que contemplam entradas, pratos principais e sobremesas. O restaurante possui foco na culinária vegetariana e vegana,  mas também disponibiliza pratos tradicionais para atender a diferentes preferências.
         </p>
       </div>
 
