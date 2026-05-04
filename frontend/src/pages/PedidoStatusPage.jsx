@@ -22,6 +22,13 @@ const STATUS_DESCRIPTION = {
   PEDIDO_ENTREGUE: 'Pedido finalizado com sucesso.',
 };
 
+function formatCurrency(value) {
+  return Number(value ?? 0).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
+
 function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
   const [status, setStatus] = useState(pedido?.status ?? 'PEDIDO_FEITO');
   const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
@@ -111,6 +118,31 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
 
           <div className="status-progress-track" aria-hidden="true">
             <div className="status-progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+
+          <div className="pedido-products">
+            <div className="pedido-products-heading">
+              <h3>Produtos do pedido</h3>
+              <strong>{formatCurrency(pedido.precoTotal)}</strong>
+            </div>
+
+            <div className="pedido-products-list">
+              {(pedido.itens ?? []).map((item) => (
+                <div className="pedido-product-row" key={item.id}>
+                  <div className="pedido-product-image-wrap">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.nome} />
+                    ) : (
+                      <span>Foto</span>
+                    )}
+                  </div>
+                  <div>
+                    <strong>{item.nome}</strong>
+                    <p>{formatCurrency(item.preco)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="status-list">

@@ -6,6 +6,8 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -37,6 +39,10 @@ public class Pedido {
 
     @Column
     private LocalDateTime entregueEm;
+
+    @Enumerated(EnumType.STRING)
+    @Column
+    private PedidoStatus status = PedidoStatus.PEDIDO_FEITO;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -74,6 +80,20 @@ public class Pedido {
         return entregueEm;
     }
 
+    public PedidoStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PedidoStatus status) {
+        this.status = status;
+        if (status == PedidoStatus.PEDIDO_ENTREGUE && entregueEm == null) {
+            entregueEm = LocalDateTime.now();
+        }
+        if (status != PedidoStatus.PEDIDO_ENTREGUE) {
+            entregueEm = null;
+        }
+    }
+
     public List<PedidoItem> getItens() {
         return itens;
     }
@@ -92,6 +112,7 @@ public class Pedido {
 
     public void confirmarEntrega(LocalDateTime entregueEm) {
         this.entregueEm = entregueEm;
+        this.status = PedidoStatus.PEDIDO_ENTREGUE;
     }
 
     public BigDecimal getPrecoTotal() {
