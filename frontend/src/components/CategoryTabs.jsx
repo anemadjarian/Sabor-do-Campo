@@ -1,6 +1,6 @@
-function CategoryTabs({ categories, selectedCategory, onChange }) {
+function CategoryTabs({ categories = [], selectedCategory, onChange }) {
   return (
-    <div className="category-tabs" role="tablist" aria-label="Categorias do cardapio">
+    <div className="category-tabs" role="tablist" aria-label="Categorias do cardápio">
       <button
         type="button"
         className={selectedCategory === '' ? 'tab-button active' : 'tab-button'}

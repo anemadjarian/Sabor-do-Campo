@@ -44,7 +44,7 @@ function ProductFormPage({ categories, onSubmit, onSuccess }) {
         <p className="eyebrow">Painel interno</p>
         <h2>Cadastro do produto</h2>
         <p>
-          Cadastre novos itens do cardapio com nome, preco, ingredientes e categoria.
+          Cadastre novos itens do cardápio com nome, preco, ingredientes e categoria.
         </p>
 
         <form className="product-form" onSubmit={handleSubmit}>

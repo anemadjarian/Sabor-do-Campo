@@ -1,4 +1,4 @@
-package com.sabordocampo.menu;
+package com.sabordocampo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

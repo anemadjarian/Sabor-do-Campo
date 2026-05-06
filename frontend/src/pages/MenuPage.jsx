@@ -11,9 +11,12 @@ function MenuPage({
   selectedCategory,
   onCategoryChange,
   onAddToCart,
+  onRequireLogin,
+  isLoggedIn,
   onRetry,
 }) {
   const [search, setSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const groupedItems = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -39,14 +42,32 @@ function MenuPage({
 
   const sections = Object.entries(groupedItems);
 
+  const handleOpenConfirm = (item) => {
+    if (!isLoggedIn) {
+      onRequireLogin();
+      return;
+    }
+
+    setSelectedItem(item);
+  };
+
+  const handleCloseConfirm = () => {
+    setSelectedItem(null);
+  };
+
+  const handleConfirmAdd = () => {
+    if (!selectedItem) return;
+    onAddToCart(selectedItem);
+    setSelectedItem(null);
+  };
+
   return (
     <section className="hero-card">
       <div className="hero-copy">
-        <p className="eyebrow">Sabores do Campo</p>
-        <h2>Cardapio do Produto</h2>
+        <p className="eyebrow">Sabor do Campo</p>
+        <h2>Cardápio</h2>
         <p>
-          Uma vitrine leve e elegante para entradas, pratos principais, sobremesas e
-          bebidas, inspirada no visual organico da sua referencia.
+        Um cardápio variado, leve  cuidadosamente elaborado para oferecer uma experiência gastronômica completa, com opções que contemplam entradas, pratos principais e sobremesas. O restaurante possui foco na culinária vegetariana e vegana,  mas também disponibiliza pratos tradicionais para atender a diferentes preferências.
         </p>
       </div>
 
@@ -60,7 +81,7 @@ function MenuPage({
           />
         </div>
 
-        {isLoading ? <p className="feedback-message">Carregando cardapio...</p> : null}
+        {isLoading ? <p className="feedback-message">Carregando cardápio...</p> : null}
 
         {!isLoading && error ? (
           <div className="feedback-card">
@@ -88,7 +109,7 @@ function MenuPage({
 
                 <div className="menu-grid">
                   {sectionItems.map((item) => (
-                    <MenuItemCard key={item.id} item={item} onAddToCart={onAddToCart} />
+                    <MenuItemCard key={item.id} item={item} onAddToCart={handleOpenConfirm} />
                   ))}
                 </div>
               </section>
@@ -96,6 +117,45 @@ function MenuPage({
           </div>
         ) : null}
       </div>
+
+      {selectedItem ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar prato">
+          <div className="modal-content menu-confirm-modal">
+            <h3>Deseja selecionar este prato?</h3>
+            <p className="menu-confirm-type">Tipo: {selectedItem.categoryLabel}</p>
+            <div className="menu-confirm-image-wrap">
+              {selectedItem.imageUrl ? (
+                <img
+                  className="menu-confirm-image"
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.name}
+                />
+              ) : (
+                <div className="menu-confirm-image-placeholder">Sem foto</div>
+              )}
+            </div>
+            <p className="menu-confirm-name">{selectedItem.name}</p>
+            <p className="menu-confirm-description">{selectedItem.description}</p>
+            {selectedItem.ingredients.length > 0 ? (
+              <p className="menu-confirm-description">
+                Ingredientes: {selectedItem.ingredients.join(', ')}
+              </p>
+            ) : null}
+            <p className="menu-confirm-price">
+              R$ {Number(selectedItem.price).toFixed(2).replace('.', ',')}
+            </p>
+
+            <div className="modal-actions">
+              <button type="button" onClick={handleConfirmAdd}>
+                Adicionar
+              </button>
+              <button type="button" onClick={handleCloseConfirm}>
+                Voltar ao cardápio
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
