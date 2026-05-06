@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { updateUser, getCurrentUser } from "../services/profileService";
 
 function ProfilePage({ onNavigate, onLogout }) {
@@ -12,6 +14,7 @@ function ProfilePage({ onNavigate, onLogout }) {
 
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -37,13 +40,16 @@ function ProfilePage({ onNavigate, onLogout }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const isChangingPassword = Boolean(form.password?.trim());
 
     try {
       await updateUser(form);
 
       setStatus({
         type: "success",
-        message: "Perfil atualizado com sucesso!"
+        message: isChangingPassword
+          ? "Senha alterada com sucesso."
+          : "Perfil atualizado com sucesso!"
       });
 
       setForm(prev => ({ ...prev, password: "" }));
@@ -118,14 +124,25 @@ function ProfilePage({ onNavigate, onLogout }) {
 
           <label>
             <span>Nova senha (opcional)</span>
-            <input
-              type="password"
-              placeholder="Deixe vazio para manter atual"
-              value={form.password}
-              onChange={(e) =>
-                setForm({ ...form, password: e.target.value })
-              }
-            />
+            <div className="password-field">
+              <input
+                type={isPasswordVisible ? "text" : "password"}
+                placeholder="Deixe vazio para manter atual"
+                value={form.password}
+                onChange={(e) =>
+                  setForm({ ...form, password: e.target.value })
+                }
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setIsPasswordVisible((prev) => !prev)}
+                aria-label={isPasswordVisible ? "Ocultar senha" : "Mostrar senha"}
+                aria-pressed={isPasswordVisible}
+              >
+                {isPasswordVisible ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+              </button>
+            </div>
           </label>
 
           {status && (

@@ -628,6 +628,17 @@ button {
   color: #8c2f2f;
 }
 
+.forgot-password-card {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.forgot-password-card .product-form {
+  margin-top: 0;
+}
+
 .admin-users-page {
   display: grid;
   gap: 24px;

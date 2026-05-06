@@ -1,7 +1,7 @@
 import { useState } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { login } from "../services/loginService";
+import { login, requestPasswordReset, resetPassword } from "../services/loginService";
 
 function LoginPage({ onLogin, onNavigate }) {
   const [form, setForm] = useState({
@@ -11,6 +11,15 @@ function LoginPage({ onLogin, onNavigate }) {
 
   const [status, setStatus] = useState(null);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotStep, setForgotStep] = useState("request");
+  const [forgotForm, setForgotForm] = useState({
+    email: "",
+    code: "",
+    newPassword: ""
+  });
+  const [forgotStatus, setForgotStatus] = useState(null);
+  const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -24,6 +33,52 @@ function LoginPage({ onLogin, onNavigate }) {
     } catch (err) {
       console.log(err);
       setStatus({ type: "error", message: "Email ou senha inválidos" });
+    }
+  }
+
+  async function handleRequestCode() {
+    setForgotStatus(null);
+    if (!forgotForm.email) {
+      setForgotStatus({ type: "error", message: "Informe seu email para recuperar a senha." });
+      return;
+    }
+
+    try {
+      const response = await requestPasswordReset(forgotForm.email);
+      setForgotForm((prev) => ({ ...prev, code: response.code || "" }));
+      setForgotStatus({
+        type: "success",
+        message: response.code
+          ? `Codigo gerado: ${response.code}`
+          : (response.message || "Codigo gerado com sucesso.")
+      });
+      setForgotStep("reset");
+    } catch (err) {
+      setForgotStatus({ type: "error", message: err.message || "Nao foi possivel enviar o codigo." });
+    }
+  }
+
+  async function handleResetPassword() {
+    setForgotStatus(null);
+    if (!forgotForm.email || !forgotForm.code || !forgotForm.newPassword) {
+      setForgotStatus({ type: "error", message: "Preencha email, codigo e nova senha." });
+      return;
+    }
+
+    try {
+      const response = await resetPassword({
+        email: forgotForm.email,
+        code: forgotForm.code,
+        newPassword: forgotForm.newPassword
+      });
+      const successMessage = response.message || "Senha redefinida com sucesso.";
+      setForgotStatus({ type: "success", message: successMessage });
+      setForgotForm({ email: "", code: "", newPassword: "" });
+      setForgotStep("request");
+      setShowForgotPassword(false);
+      setStatus({ type: "success", message: `${successMessage} Faça login com a nova senha.` });
+    } catch (err) {
+      setForgotStatus({ type: "error", message: err.message || "Nao foi possivel redefinir a senha." });
     }
   }
 
@@ -78,10 +133,98 @@ function LoginPage({ onLogin, onNavigate }) {
             Entrar
           </button>
 
+
+          
           <button type="button" className="link-button"
           onClick={() => onNavigate('register')}>
             Não tem conta? Criar
           </button>
+
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              setShowForgotPassword((prev) => !prev);
+              setForgotStatus(null);
+            }}
+          >
+            Esqueci minha senha
+          </button>
+
+          {showForgotPassword && (
+            <div className="forgot-password-card">
+              {forgotStep === "request" ? (
+                <div className="product-form">
+                  <label>
+                    <span>Email para recuperar</span>
+                    <input
+                      type="email"
+                      required
+                      value={forgotForm.email}
+                      onChange={(e) => setForgotForm({ ...forgotForm, email: e.target.value })}
+                    />
+                  </label>
+                  <button className="submit-button" type="button" onClick={handleRequestCode}>
+                    Enviar codigo
+                  </button>
+                </div>
+              ) : (
+                <div className="product-form">
+                  <label>
+                    <span>Codigo recebido</span>
+                    <input
+                      required
+                      value={forgotForm.code}
+                      onChange={(e) => setForgotForm({ ...forgotForm, code: e.target.value })}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Nova senha</span>
+                    <div className="password-field">
+                      <input
+                        type={isForgotPasswordVisible ? "text" : "password"}
+                        required
+                        value={forgotForm.newPassword}
+                        onChange={(e) => setForgotForm({ ...forgotForm, newPassword: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle"
+                        onClick={() => setIsForgotPasswordVisible((prev) => !prev)}
+                        aria-label={isForgotPasswordVisible ? "Ocultar senha" : "Mostrar senha"}
+                        aria-pressed={isForgotPasswordVisible}
+                      >
+                        {isForgotPasswordVisible ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                      </button>
+                    </div>
+                  </label>
+
+                  <button className="submit-button" type="button" onClick={handleResetPassword}>
+                    Redefinir senha
+                  </button>
+
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => {
+                      setForgotStep("request");
+                      setForgotStatus(null);
+                    }}
+                  >
+                    Enviar novo codigo
+                  </button>
+                </div>
+              )}
+
+              {forgotStatus && (
+                <p className={`status-message ${forgotStatus.type}`}>
+                  {forgotStatus.message}
+                </p>
+              )}
+            </div>
+          )}
+
         </form>
       </div>
     </section>
