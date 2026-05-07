@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buscarStatusPedido, confirmarEntregaPedido } from '../services/pedidoService';
+import { confirmarEntregaPedido } from '../services/pedidoService';
 
 const STATUS_FLOW = [
   'PEDIDO_FEITO',
@@ -29,7 +29,7 @@ function formatCurrency(value) {
   });
 }
 
-function PedidoStatusPage({ pedido, pedidos = [], onBackToMenu, onStatusChange }) {
+function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMenu, onStatusChange }) {
   const availablePedidos = useMemo(() => (
     pedidos.length > 0 ? pedidos : pedido?.id ? [pedido] : []
   ), [pedido, pedidos]);
@@ -38,48 +38,14 @@ function PedidoStatusPage({ pedido, pedidos = [], onBackToMenu, onStatusChange }
   const currentPedido = availablePedidos.find((item) => item.id === selectedPedidoId)
     ?? availablePedidos[0]
     ?? null;
-  const [status, setStatus] = useState(currentPedido?.status ?? 'PEDIDO_FEITO');
   const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+  const status = currentPedido?.status ?? 'PEDIDO_FEITO';
 
   useEffect(() => {
     if (!availablePedidos.some((item) => item.id === selectedPedidoId)) {
       setSelectedPedidoId(availablePedidos[0]?.id ?? null);
     }
   }, [availablePedidos, selectedPedidoId]);
-
-  useEffect(() => {
-    setStatus(currentPedido?.status ?? 'PEDIDO_FEITO');
-  }, [currentPedido?.id, currentPedido?.status]);
-
-  useEffect(() => {
-    if (!currentPedido?.id) return;
-
-    let intervalId;
-    let isMounted = true;
-
-    async function loadStatus() {
-      try {
-        const response = await buscarStatusPedido(currentPedido.id);
-        if (!isMounted) return;
-        setStatus(response.status);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    loadStatus();
-    intervalId = window.setInterval(loadStatus, 5000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [currentPedido?.id]);
-
-  useEffect(() => {
-    if (!currentPedido?.id || !onStatusChange) return;
-    onStatusChange(currentPedido.id, status);
-  }, [currentPedido?.id, status, onStatusChange]);
 
   const currentStep = useMemo(() => STATUS_FLOW.indexOf(status), [status]);
   const safeStep = currentStep < 0 ? 0 : currentStep;
@@ -92,7 +58,7 @@ function PedidoStatusPage({ pedido, pedidos = [], onBackToMenu, onStatusChange }
     try {
       setIsConfirmingDelivery(true);
       const response = await confirmarEntregaPedido(currentPedido.id);
-      setStatus(response.status);
+      onStatusChange?.(currentPedido.id, response.status);
     } catch (err) {
       alert(err.message || 'Nao foi possivel confirmar entrega.');
     } finally {
@@ -100,11 +66,22 @@ function PedidoStatusPage({ pedido, pedidos = [], onBackToMenu, onStatusChange }
     }
   }
 
+  if (isLoading && !currentPedido?.id) {
+    return (
+      <section className="hero-card">
+        <div className="hero-copy">
+          <h2>Carregando pedidos</h2>
+          <p>Buscando seus pedidos no banco de dados.</p>
+        </div>
+      </section>
+    );
+  }
+
   if (!currentPedido?.id) {
     return (
       <section className="hero-card">
         <div className="hero-copy">
-          <h2>Nenhum pedido ativo</h2>
+          <h2>Nenhum pedido encontrado</h2>
           <button className="edit-address-button" onClick={onBackToMenu}>
             Voltar ao cardápio
           </button>

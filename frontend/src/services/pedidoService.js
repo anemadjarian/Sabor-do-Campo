@@ -18,6 +18,10 @@ export function buscarPedidosAtivos() {
   return apiRequest('/pedidos/me/ativos');
 }
 
+export function listarMeusPedidos() {
+  return apiRequest('/pedidos/me');
+}
+
 export function confirmarEntregaPedido(pedidoId) {
   return apiRequest(`/pedidos/${pedidoId}/confirmar-entrega`, {
     method: 'POST',

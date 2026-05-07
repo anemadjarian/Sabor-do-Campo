@@ -61,6 +61,14 @@ function AdminOrdersPage() {
   async function handleStatusChange(pedido, nextStatus) {
     setUpdatingId(pedido.id);
     setStatus({ type: '', message: '' });
+    const previousStatus = pedido.status;
+
+    setPedidos((current) =>
+      current.map((item) => (item.id === pedido.id ? { ...item, status: nextStatus } : item))
+    );
+    setSelectedPedido((current) => (
+      current?.id === pedido.id ? { ...current, status: nextStatus } : current
+    ));
 
     try {
       const updatedPedido = await updatePedidoStatus(pedido.id, nextStatus);
@@ -70,6 +78,12 @@ function AdminOrdersPage() {
       setSelectedPedido((current) => (current?.id === updatedPedido.id ? updatedPedido : current));
       setStatus({ type: 'success', message: 'Status atualizado com sucesso.' });
     } catch (error) {
+      setPedidos((current) =>
+        current.map((item) => (item.id === pedido.id ? { ...item, status: previousStatus } : item))
+      );
+      setSelectedPedido((current) => (
+        current?.id === pedido.id ? { ...current, status: previousStatus } : current
+      ));
       setStatus({ type: 'error', message: error.message });
     } finally {
       setUpdatingId(null);
