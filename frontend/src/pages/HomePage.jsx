@@ -52,14 +52,7 @@ function HomePage({ onGoToMenu }) {
 
       \<br />      \<br />  
 
-      <div className="landing-section">
-        <h3>Nosso estabelecimento</h3>
-        <div className="front-gallery">
-          <img src={restaurante1} alt="Fachada do restaurante 1" className="front-image" />
-          <img src={restaurante2} alt="Fachada do restaurante 2" className="front-image" />
-        </div>
-      </div>
-      \<br />
+    
 
       <div className="landing-section">
         <h3>Pratos em destaque</h3>
@@ -78,6 +71,7 @@ function HomePage({ onGoToMenu }) {
         </div>
       </div>
 
+    
       <div className="landing-dots" aria-hidden="true">
         {carouselImages.map((_, index) => (
           <button
@@ -88,7 +82,15 @@ function HomePage({ onGoToMenu }) {
           />
         ))}
       </div>
-
+      
+      <div className="landing-section">
+              <h3>Nosso estabelecimento</h3>
+              <div className="front-gallery">
+                <img src={restaurante1} alt="Fachada do restaurante 1" className="front-image" />
+                <img src={restaurante2} alt="Fachada do restaurante 2" className="front-image" />
+              </div>
+            </div>
+            \<br />
       
     </section>
   );

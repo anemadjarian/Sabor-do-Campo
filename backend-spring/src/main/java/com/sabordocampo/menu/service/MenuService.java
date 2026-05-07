@@ -47,7 +47,24 @@ public class MenuService {
             request.price(),
             Category.fromValue(request.category()),
             normalizeIngredients(request.ingredients()),
-            normalizeOptional(request.imageUrl())
+            normalizeImageUrl(request.imageUrl())
+        );
+
+        return toResponse(menuItemRepository.save(menuItem));
+    }
+
+    @Transactional
+    public MenuItemResponse updateMenuItem(Long id, MenuItemRequest request) {
+        MenuItem menuItem = menuItemRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado."));
+
+        menuItem.update(
+            request.name().trim(),
+            request.description().trim(),
+            request.price(),
+            Category.fromValue(request.category()),
+            normalizeIngredients(request.ingredients()),
+            normalizeImageUrl(request.imageUrl())
         );
 
         return toResponse(menuItemRepository.save(menuItem));
@@ -150,5 +167,19 @@ public class MenuService {
 
     private String normalizeOptional(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String normalizeImageUrl(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized.isBlank()) {
+            return "";
+        }
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            return normalized;
+        }
+        if (normalized.startsWith("www.")) {
+            return "https://" + normalized;
+        }
+        return normalized;
     }
 }

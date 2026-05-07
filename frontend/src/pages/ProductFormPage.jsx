@@ -11,6 +11,7 @@ const initialForm = {
 
 function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
   const [formData, setFormData] = useState(initialForm);
+  const [editingItemId, setEditingItemId] = useState(null);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -45,15 +46,52 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
     setStatus({ type: '', message: '' });
 
     try {
-      await onSubmit(formData);
-      setStatus({ type: 'success', message: 'Produto cadastrado com sucesso.' });
+      const normalizedPrice = Number.parseFloat(String(formData.price).replace(',', '.'));
+      if (Number.isNaN(normalizedPrice)) {
+        throw new Error('Preco invalido.');
+      }
+
+      const normalizedImageUrl = normalizeImageUrl(formData.imageUrl);
+      const payload = {
+        ...formData,
+        price: Number(normalizedPrice.toFixed(2)),
+        imageUrl: normalizedImageUrl,
+      };
+
+      if (editingItemId) {
+        await onSubmit(editingItemId, payload);
+        setStatus({ type: 'success', message: 'Produto atualizado com sucesso.' });
+      } else {
+        await onSubmit(payload);
+        setStatus({ type: 'success', message: 'Produto cadastrado com sucesso.' });
+      }
       setFormData({ ...initialForm, category: categories[0]?.value ?? 'ENTRADA' });
+      setEditingItemId(null);
       onSuccess();
     } catch (submitError) {
       setStatus({ type: 'error', message: submitError.message });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleStartEdit = (item) => {
+    setEditingItemId(item.id);
+    setFormData({
+      name: item.name ?? '',
+      description: item.description ?? '',
+      price: String(item.price ?? ''),
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : '',
+      category: item.category ?? categories[0]?.value ?? 'ENTRADA',
+      imageUrl: item.imageUrl ?? '',
+    });
+    setStatus({ type: '', message: '' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setFormData({ ...initialForm, category: categories[0]?.value ?? 'ENTRADA' });
+    setStatus({ type: '', message: '' });
   };
 
   return (
@@ -126,8 +164,14 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
           </label>
 
           <button className="submit-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : 'Cadastrar produto'}
+            {isSubmitting ? 'Salvando...' : editingItemId ? 'Salvar alteracoes' : 'Cadastrar produto'}
           </button>
+
+          {editingItemId ? (
+            <button className="submit-button" type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
+              Cancelar edicao
+            </button>
+          ) : null}
 
           {status.message ? (
             <p className={status.type === 'success' ? 'status-message success' : 'status-message error'}>
@@ -152,14 +196,23 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
                     <strong>{item.name}</strong>
                     <span>{item.categoryLabel} - R$ {Number(item.price).toFixed(2).replace('.', ',')}</span>
                   </div>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    disabled={deletingId === item.id}
-                    onClick={() => handleDelete(item)}
-                  >
-                    {deletingId === item.id ? 'Deletando...' : 'Deletar'}
-                  </button>
+                  <div className="admin-product-actions">
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={() => handleStartEdit(item)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={deletingId === item.id}
+                      onClick={() => handleDelete(item)}
+                    >
+                      {deletingId === item.id ? 'Deletando...' : 'Deletar'}
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -168,6 +221,14 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
       </div>
     </section>
   );
+}
+
+function normalizeImageUrl(value) {
+  const raw = (value ?? '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('www.')) return `https://${raw}`;
+  return raw;
 }
 
 export default ProductFormPage;

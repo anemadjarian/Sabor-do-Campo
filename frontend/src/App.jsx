@@ -39,6 +39,7 @@ function App() {
     setSelectedCategory,
     refreshMenu,
     addMenuItem,
+    editMenuItem,
     removeMenuItem,
   } = useMenu();
 
@@ -278,7 +279,11 @@ function App() {
             <ProductFormPage
               categories={categories}
               items={items}
-              onSubmit={addMenuItem}
+              onSubmit={(idOrPayload, maybePayload) => (
+                typeof idOrPayload === 'number'
+                  ? editMenuItem(idOrPayload, maybePayload)
+                  : addMenuItem(idOrPayload)
+              )}
               onDelete={removeMenuItem}
               onSuccess={() => {
                 refreshMenu();
