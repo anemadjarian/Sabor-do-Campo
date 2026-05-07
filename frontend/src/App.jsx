@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Header from './components/Header';
 import MenuPage from './pages/MenuPage';
 import ProductFormPage from './pages/ProductFormPage';
 import { useMenu } from './hooks/useMenu';
 import { fetchCart, createCartItem, removeCartItem } from './services/cartService';
-import { buscarPedidosAtivos, confirmarPedido } from './services/pedidoService';
+import { confirmarPedido, listarMeusPedidos } from './services/pedidoService';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import PedidoStatusPage from './pages/PedidoStatusPage';
 import LoginPage from './pages/LoginPage';
@@ -15,18 +15,21 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import { getCurrentUser } from './services/profileService';
 
-const LEGACY_PEDIDO_STORAGE_KEY = 'pedido_atual';
+const ACTIVE_PAGE_STORAGE_KEY = 'active_page';
 
 const pages = {
   menu: 'Cardápio'
 };
 
 function App() {
-  const [activePage, setActivePage] = useState('home');
+  const [activePage, setActivePage] = useState(() => (
+    localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) || 'home'
+  ));
   const [user, setUser] = useState(null);
   const isAdmin = user?.role === 'ROLE_ADMIN';
   const visiblePages = {
     ...pages,
+    ...(user && !isAdmin ? { pedidoStatus: 'Pedidos' } : {}),
     ...(isAdmin ? { admin: 'Produtos', adminUsers: 'Usuarios', adminOrders: 'Pedidos' } : {}),
   };
 
@@ -49,7 +52,8 @@ function App() {
     address: null
   });
 
-  const [pedidosAtivos, setPedidosAtivos] = useState([]);
+  const [pedidosUsuario, setPedidosUsuario] = useState([]);
+  const [isLoadingPedidosUsuario, setIsLoadingPedidosUsuario] = useState(false);
 
   // carregar user pelo token
   useEffect(() => {
@@ -64,70 +68,49 @@ function App() {
       });
   }, []);
 
-  //  carregar pedidos ativos por usuario logado
   useEffect(() => {
-    localStorage.removeItem(LEGACY_PEDIDO_STORAGE_KEY);
+    localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+  }, [activePage]);
 
+  //  carregar pedidos do usuario logado pelo banco
+  useEffect(() => {
     if (!user || user.role === 'ROLE_ADMIN') {
-      setPedidosAtivos([]);
+      setPedidosUsuario([]);
+      setIsLoadingPedidosUsuario(false);
       return;
     }
 
     let isCurrent = true;
 
-    async function loadPedidosAtivos() {
+    async function loadPedidosUsuario() {
+      setIsLoadingPedidosUsuario(true);
+
       try {
-        const pedidos = await buscarPedidosAtivos();
+        const pedidos = await listarMeusPedidos();
         if (!isCurrent) return;
-
-        if (Array.isArray(pedidos)) {
-          setPedidosAtivos(pedidos);
-          return;
-        }
-
-        loadPedidosFromStorage();
-      } catch {
+        setPedidosUsuario(
+          Array.isArray(pedidos)
+            ? pedidos.filter((pedido) => pedido.status !== 'PEDIDO_ENTREGUE')
+            : []
+        );
+      } catch (error) {
         if (isCurrent) {
-          loadPedidosFromStorage();
+          console.error(error);
+          setPedidosUsuario([]);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingPedidosUsuario(false);
         }
       }
     }
 
-    function loadPedidosFromStorage() {
-      const saved = localStorage.getItem(getPedidoStorageKey(user.id));
-      if (!saved) {
-        setPedidosAtivos([]);
-        return;
-      }
-
-      try {
-        const parsed = JSON.parse(saved);
-        setPedidosAtivos(Array.isArray(parsed) ? parsed : parsed?.id ? [parsed] : []);
-      } catch {
-        localStorage.removeItem(getPedidoStorageKey(user.id));
-        setPedidosAtivos([]);
-      }
-    }
-
-    loadPedidosAtivos();
+    loadPedidosUsuario();
 
     return () => {
       isCurrent = false;
     };
   }, [user?.id, user?.role]);
-
-  //  salvar pedidos por usuario logado
-  useEffect(() => {
-    if (!user || user.role === 'ROLE_ADMIN') return;
-
-    const storageKey = getPedidoStorageKey(user.id);
-    if (pedidosAtivos.length === 0) {
-      localStorage.removeItem(storageKey);
-      return;
-    }
-
-    localStorage.setItem(storageKey, JSON.stringify(pedidosAtivos));
-  }, [pedidosAtivos, user?.id, user?.role]);
 
   //  carregar carrinho do usuário
   useEffect(() => {
@@ -198,21 +181,29 @@ function App() {
     }
 
     const pedido = await confirmarPedido(cart.id);
-    setPedidosAtivos((current) => [
+    setPedidosUsuario((current) => [
       pedido,
-      ...current.filter((item) => item.id !== pedido.id),
+      ...current.filter((item) => item.id !== pedido.id && item.status !== 'PEDIDO_ENTREGUE'),
     ]);
     await loadCart();
     setActivePage('pedidoStatus');
   };
 
-  const handlePedidoStatusChange = (pedidoId, nextStatus) => {
-    setPedidosAtivos((current) => current.map((pedido) => (
-      pedido.id === pedidoId && pedido.status !== nextStatus
-        ? { ...pedido, status: nextStatus }
-        : pedido
-    )));
-  };
+  const handlePedidoStatusChange = useCallback((pedidoId, nextStatus) => {
+    setPedidosUsuario((current) => {
+      let changed = false;
+      const nextPedidos = current.map((pedido) => {
+        if (pedido.id !== pedidoId || pedido.status === nextStatus) {
+          return pedido;
+        }
+
+        changed = true;
+        return { ...pedido, status: nextStatus };
+      }).filter((pedido) => pedido.status !== 'PEDIDO_ENTREGUE');
+
+      return changed ? nextPedidos : current;
+    });
+  }, []);
 
   //  auth
   async function handleLogin(userData) {
@@ -230,8 +221,9 @@ function App() {
   function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('guest_cart');
+    localStorage.removeItem(ACTIVE_PAGE_STORAGE_KEY);
     setUser(null);
-    setPedidosAtivos([]);
+    setPedidosUsuario([]);
     setCart({ id: null, items: [], address: null });
     setActivePage('home');
   }
@@ -245,11 +237,7 @@ function App() {
         pages={visiblePages}
         user={user}
         showCart={!isAdmin}
-        hasActivePedido={Boolean(
-          user
-          && !isAdmin
-          && pedidosAtivos.some((pedido) => pedido.status !== 'PEDIDO_ENTREGUE')
-        )}
+        hasActivePedido={false}
       />
 
       <main className="page-content">
@@ -349,7 +337,8 @@ function App() {
             <AdminOrdersPage />
           ) : (
             <PedidoStatusPage
-              pedidos={pedidosAtivos}
+              pedidos={pedidosUsuario}
+              isLoading={isLoadingPedidosUsuario}
               onBackToMenu={() => setActivePage('menu')}
               onStatusChange={handlePedidoStatusChange}
             />
@@ -370,10 +359,6 @@ function App() {
       </main>
     </div>
   );
-}
-
-function getPedidoStorageKey(userId) {
-  return `pedido_atual_${userId}`;
 }
 
 export default App;
