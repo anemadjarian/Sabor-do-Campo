@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -40,6 +41,9 @@ class PedidoServiceTest {
     @Mock
     private PedidoRepository pedidoRepository;
 
+    @Spy
+    private FreteService freteService = new FreteService();
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -47,7 +51,7 @@ class PedidoServiceTest {
     void criarAPartirDoCarrinhoDeveCriarPedidoEEsvaziarCarrinho() {
         ShoppingCart carrinho = new ShoppingCart();
         carrinho.setUser(user("cliente@sabor.com"));
-        carrinho.setAddress(new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", "Apto 1"));
+        carrinho.setAddress(new Address("Rua A", "10", "Castelo", "Belo Horizonte", "MG", "31330-000", "Apto 1"));
 
         MenuItem prato = new MenuItem("Prato Executivo", "Desc", new BigDecimal("25.00"), Category.PRATO_PRINCIPAL, "Ingredientes", "  https://img/prato.jpg  ");
         ReflectionTestUtils.setField(prato, "id", 11L);
@@ -69,7 +73,10 @@ class PedidoServiceTest {
         assertThat(response.itens()).hasSize(2);
         assertThat(response.itens().get(0).imageUrl()).isEqualTo("https://img/prato.jpg");
         assertThat(response.itens().get(1).imageUrl()).isEqualTo("");
-        assertThat(response.precoTotal()).isEqualByComparingTo("32.50");
+        assertThat(response.subtotalProdutos()).isEqualByComparingTo("32.50");
+        assertThat(response.frete()).isEqualByComparingTo("7.88");
+        assertThat(response.distanciaEntregaKm()).isEqualByComparingTo("1.50");
+        assertThat(response.precoTotal()).isEqualByComparingTo("40.38");
 
         ArgumentCaptor<Pedido> pedidoCaptor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(pedidoCaptor.capture());
@@ -79,6 +86,8 @@ class PedidoServiceTest {
         assertThat(pedidoSalvo.getEnderecoEntrega().getStreet()).isEqualTo("Rua A");
         assertThat(pedidoSalvo.getUser()).isNotNull();
         assertThat(pedidoSalvo.getUser().getEmail()).isEqualTo("cliente@sabor.com");
+        assertThat(pedidoSalvo.getFrete()).isEqualByComparingTo("7.88");
+        assertThat(pedidoSalvo.getDistanciaEntregaKm()).isEqualByComparingTo("1.50");
 
         assertThat(carrinho.getItems()).isEmpty();
     }

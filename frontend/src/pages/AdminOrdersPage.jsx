@@ -188,6 +188,19 @@ function AdminOrdersPage() {
                   <dd>{statusLabel(selectedPedido.status)}</dd>
                 </div>
                 <div>
+                  <dt>Produtos</dt>
+                  <dd>{formatCurrency(selectedPedido.subtotalProdutos ?? selectedPedido.precoTotal)}</dd>
+                </div>
+                <div>
+                  <dt>Frete</dt>
+                  <dd>
+                    {formatCurrency(selectedPedido.frete)}
+                    {selectedPedido.distanciaEntregaKm
+                      ? ` (${Number(selectedPedido.distanciaEntregaKm).toFixed(1).replace('.', ',')} km)`
+                      : ''}
+                  </dd>
+                </div>
+                <div>
                   <dt>Total</dt>
                   <dd>{formatCurrency(selectedPedido.precoTotal)}</dd>
                 </div>

@@ -132,6 +132,12 @@ function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMen
               <h3>Produtos do pedido</h3>
               <strong>{formatCurrency(currentPedido.precoTotal)}</strong>
             </div>
+            <p className="shipping-note">
+              Produtos: {formatCurrency(currentPedido.subtotalProdutos ?? currentPedido.precoTotal)}
+              {' | '}
+              Frete: {formatCurrency(currentPedido.frete)}
+              {currentPedido.distanciaEntregaKm ? ` (${Number(currentPedido.distanciaEntregaKm).toFixed(1).replace('.', ',')} km estimados)` : ''}
+            </p>
 
             <div className="pedido-products-list">
               {(currentPedido.itens ?? []).map((item) => (
