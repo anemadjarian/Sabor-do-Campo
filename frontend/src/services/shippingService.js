@@ -5,8 +5,6 @@ const STORE_REFERENCE = {
   zipCode: '31330000',
 };
 
-const BASE_FEE = 6;
-const PRICE_PER_KM = 1.25;
 const MIN_DISTANCE_KM = 1.5;
 
 export function calculateDeliveryFee(address) {
@@ -19,13 +17,25 @@ export function calculateDeliveryFee(address) {
   }
 
   const distanceKm = estimateDistanceKm(address);
-  const price = roundCurrency(BASE_FEE + distanceKm * PRICE_PER_KM);
+  const price = calculateFee(distanceKm);
 
   return {
     price,
     distanceKm,
     label: `${distanceKm.toFixed(1).replace('.', ',')} km estimados`,
   };
+}
+
+function calculateFee(distanceKm) {
+  if (distanceKm <= 5) {
+    return 5;
+  }
+
+  if (distanceKm <= 10) {
+    return 8;
+  }
+
+  return 15;
 }
 
 function estimateDistanceKm(address) {

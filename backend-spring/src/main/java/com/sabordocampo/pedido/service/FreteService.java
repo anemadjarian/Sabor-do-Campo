@@ -13,8 +13,6 @@ public class FreteService {
     private static final String STORE_CITY = "Belo Horizonte";
     private static final String STORE_STATE = "MG";
     private static final long STORE_ZIP_CODE = 31330000L;
-    private static final BigDecimal BASE_FEE = new BigDecimal("6.00");
-    private static final BigDecimal PRICE_PER_KM = new BigDecimal("1.25");
     private static final double MIN_DISTANCE_KM = 1.5;
 
     public Frete calcular(Address address) {
@@ -23,12 +21,20 @@ public class FreteService {
         }
 
         double distanceKm = estimateDistanceKm(address);
-        BigDecimal price = BASE_FEE
-            .add(BigDecimal.valueOf(distanceKm).multiply(PRICE_PER_KM))
-            .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal price = BigDecimal.valueOf(calculateFee(distanceKm)).setScale(2, RoundingMode.HALF_UP);
         BigDecimal distance = BigDecimal.valueOf(distanceKm).setScale(2, RoundingMode.HALF_UP);
 
         return new Frete(price, distance);
+    }
+
+    private double calculateFee(double distanceKm) {
+        if (distanceKm <= 5) {
+            return 5.0;
+        }
+        if (distanceKm <= 10) {
+            return 8.0;
+        }
+        return 15.0;
     }
 
     private double estimateDistanceKm(Address address) {

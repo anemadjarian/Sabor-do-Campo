@@ -115,6 +115,8 @@ function ProfilePage({ onNavigate, onLogout }) {
           <label>
             <span>Telefone</span>
             <input
+              type="tel"
+              autoComplete="tel"
               value={form.phone}
               onChange={(e) =>
                 setForm({ ...form, phone: e.target.value })

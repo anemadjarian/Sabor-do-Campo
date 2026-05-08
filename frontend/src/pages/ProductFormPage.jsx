@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 const initialForm = {
   name: '',
@@ -10,11 +10,13 @@ const initialForm = {
 };
 
 function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
+  const formRef = useRef(null);
   const [formData, setFormData] = useState(initialForm);
   const [editingItemId, setEditingItemId] = useState(null);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteModalItem, setDeleteModalItem] = useState(null);
 
   const handleChange = (field) => (event) => {
     setFormData((current) => ({
@@ -23,16 +25,25 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
     }));
   };
 
-  const handleDelete = async (item) => {
-    const confirmed = window.confirm(`Deseja deletar ${item.name} do cardapio?`);
-    if (!confirmed) return;
+  const openDeleteModal = (item) => {
+    setDeleteModalItem(item);
+    setStatus({ type: '', message: '' });
+  };
 
-    setDeletingId(item.id);
+  const closeDeleteModal = () => {
+    setDeleteModalItem(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModalItem) return;
+
+    setDeletingId(deleteModalItem.id);
     setStatus({ type: '', message: '' });
 
     try {
-      await onDelete(item.id);
+      await onDelete(deleteModalItem.id);
       setStatus({ type: 'success', message: 'Produto deletado com sucesso.' });
+      closeDeleteModal();
     } catch (deleteError) {
       setStatus({ type: 'error', message: deleteError.message });
     } finally {
@@ -86,6 +97,7 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
       imageUrl: item.imageUrl ?? '',
     });
     setStatus({ type: '', message: '' });
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleCancelEdit = () => {
@@ -103,7 +115,7 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
           Cadastre novos itens do cardápio com nome, preco, ingredientes e categoria.
         </p>
 
-        <form className="product-form" onSubmit={handleSubmit}>
+        <form ref={formRef} className="product-form" onSubmit={handleSubmit}>
           <label>
             <span>Nome do produto</span>
             <input value={formData.name} onChange={handleChange('name')} required />
@@ -168,8 +180,8 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
           </button>
 
           {editingItemId ? (
-            <button className="submit-button" type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
-              Cancelar edicao
+            <button className="submit-button cancel-edit-button" type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
+              Cancelar edição
             </button>
           ) : null}
 
@@ -208,7 +220,7 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
                       type="button"
                       className="danger-button"
                       disabled={deletingId === item.id}
-                      onClick={() => handleDelete(item)}
+                      onClick={() => openDeleteModal(item)}
                     >
                       {deletingId === item.id ? 'Deletando...' : 'Deletar'}
                     </button>
@@ -219,6 +231,30 @@ function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
           )}
         </div>
       </div>
+
+      {deleteModalItem ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar exclusão de produto">
+          <div className="modal-content">
+            <h3>Excluir produto?</h3>
+            <p>
+              Ao deletar "{deleteModalItem.name}", ele será removido definitivamente do cardápio e não aparecerá mais para os clientes.
+            </p>
+            {deleteModalItem.imageUrl ? (
+              <div className="menu-confirm-image-wrap">
+                <img className="menu-confirm-image" src={deleteModalItem.imageUrl} alt={deleteModalItem.name} />
+              </div>
+            ) : null}
+            <div className="modal-actions">
+              <button type="button" onClick={handleDelete} disabled={deletingId === deleteModalItem.id}>
+                {deletingId === deleteModalItem.id ? 'Deletando...' : 'Confirmar exclusão'}
+              </button>
+              <button type="button" className="confirm-cancel-button" onClick={closeDeleteModal}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

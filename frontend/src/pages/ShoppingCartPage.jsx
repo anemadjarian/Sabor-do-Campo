@@ -3,6 +3,7 @@ import AddressModal from '../components/AddressModal';
 import CartItemCard from '../components/CartItemCard';
 import { updateCartAddress } from '../services/cartService';
 import { calculateDeliveryFee } from '../services/shippingService';
+import { notifyError } from '../services/notificationService';
 
 function ShoppingCartPage({
   items,
@@ -23,7 +24,7 @@ function ShoppingCartPage({
 
   async function handleSaveAddress(newAddress) {
     if (!isLoggedIn) {
-      alert('Voce precisa estar logado para cadastrar endereco.');
+      notifyError('Voce precisa estar logado para cadastrar endereco.');
       onRequireLogin?.();
       return;
     }
@@ -35,8 +36,20 @@ function ShoppingCartPage({
 
   async function handleConfirmarPedido() {
     if (!isLoggedIn) {
-      alert('Voce precisa estar logado para confirmar o pedido.');
+      notifyError('Voce precisa estar logado para confirmar o pedido.');
       onRequireLogin?.();
+      return;
+    }
+
+    if (
+      !address ||
+      !address.street ||
+      !address.number ||
+      !address.neighborhood ||
+      !address.city ||
+      !address.state
+    ) {
+      notifyError('Informe o endereco de entrega antes de confirmar o pedido.');
       return;
     }
 
@@ -44,7 +57,7 @@ function ShoppingCartPage({
       setIsConfirming(true);
       await onConfirmarPedido();
     } catch (err) {
-      alert(err.message || 'Nao foi possivel confirmar o pedido.');
+      notifyError(err.message || 'Nao foi possivel confirmar o pedido.');
     } finally {
       setIsConfirming(false);
     }

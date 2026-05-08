@@ -26,6 +26,11 @@ function RegisterPage({ onNavigate }) {
       return;
     }
 
+    if (!validatePhone(form.phone)) {
+      setStatus({ type: "error", message: "Telefone invalido. Informe DDD e 10 ou 11 digitos." });
+      return;
+    }
+
     try {
       await createUser(form);
       setStatus({ type: "success", message: "Conta criada com sucesso!" });
@@ -82,7 +87,7 @@ function RegisterPage({ onNavigate }) {
                   type={isPasswordVisible ? "text" : "password"}
                   required
                   minLength={8}
-                  pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}"
+                  autoComplete="new-password"
                   title={passwordHelp}
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -103,10 +108,14 @@ function RegisterPage({ onNavigate }) {
             <label>
               <span>Telefone</span>
               <input
+                type="tel"
+                autoComplete="tel"
                 required
                 inputMode="tel"
                 maxLength={15}
                 placeholder="(31) 99999-9999"
+                pattern="\(\d{2}\) \d{4,5}-\d{4}"
+                title="Telefone deve ter DDD e 10 ou 11 dígitos"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
               />
@@ -142,6 +151,11 @@ function validatePassword(password) {
   }
 
   return "";
+}
+
+function validatePhone(phone) {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length === 10 || digits.length === 11;
 }
 
 function formatCpf(value) {

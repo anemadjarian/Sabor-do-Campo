@@ -50,7 +50,7 @@ function HomePage({ onGoToMenu }) {
         Faça seu Pedido
       </button>
 
-      \<br />      \<br />  
+      <br />      <br />  
 
     
 

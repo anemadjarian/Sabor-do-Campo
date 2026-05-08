@@ -14,6 +14,9 @@ import HomePage from './pages/HomePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import { getCurrentUser } from './services/profileService';
+import { notifyError } from './services/notificationService';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ACTIVE_PAGE_STORAGE_KEY = 'active_page';
 
@@ -96,6 +99,7 @@ function App() {
       } catch (error) {
         if (isCurrent) {
           console.error(error);
+          notifyError('Erro ao carregar seus pedidos.');
           setPedidosUsuario([]);
         }
       } finally {
@@ -147,13 +151,13 @@ function App() {
 
   const handleAddToCart = async (item) => {
     if (!user) {
-      alert('Voce precisa estar logado para adicionar itens ao carrinho.');
+      notifyError('Voce precisa estar logado para adicionar itens ao carrinho.');
       setActivePage('login');
       return;
     }
 
     if (isAdmin) {
-      alert('O administrador nao usa carrinho.');
+      notifyError('O administrador nao usa carrinho.');
       return;
     }
 
@@ -166,7 +170,7 @@ function App() {
       await removeCartItem(itemId);
       await loadCart();
     } catch {
-      alert('Erro ao remover item');
+      notifyError('Erro ao remover item');
     }
   };
 
@@ -240,6 +244,8 @@ function App() {
         hasActivePedido={false}
       />
 
+      <ToastContainer />
+
       <main className="page-content">
         {activePage === 'home' && <HomePage onGoToMenu={() => setActivePage('menu')} />}
 
@@ -255,7 +261,7 @@ function App() {
             isLoggedIn={Boolean(user)}
             canAddToCart={!isAdmin}
             onRequireLogin={() => {
-              alert('Voce precisa estar logado para adicionar itens ao carrinho.');
+              notifyError('Voce precisa estar logado para adicionar itens ao carrinho.');
               setActivePage('login');
             }}
             onRetry={refreshMenu}
@@ -346,7 +352,17 @@ function App() {
         )}
 
         {activePage === 'profile' && (
-          <ProfilePage onLogout={handleLogout} onNavigate={setActivePage} />
+          user ? (
+            <ProfilePage onLogout={handleLogout} onNavigate={setActivePage} />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <p className="eyebrow">Acesso restrito</p>
+                <h2>Perfil</h2>
+                <p>Voce precisa estar logado para ver e editar seu perfil.</p>
+              </div>
+            </section>
+          )
         )}
 
         {activePage === 'register' && (

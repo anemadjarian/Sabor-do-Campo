@@ -47,27 +47,27 @@ public class UserService {
         user.setPhone(normalizePhone(request.phone()));
         user.setRole(Role.ROLE_USER);
         userRepository.save(user);
-        return toUserResponse(user);
+        return toUserResponse(user, true);
     }
 
     @Transactional(readOnly = true)
     public UserResponse getUser(String email) {
         return userRepository.findByEmail(email)
-            .map(this::toUserResponse)
+            .map(user -> toUserResponse(user, true))
             .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
     }
 
     @Transactional(readOnly = true)
     public List<UserResponse> listUsers() {
         return userRepository.findAll().stream()
-            .map(this::toUserResponse)
+            .map(user -> toUserResponse(user, false))
             .toList();
     }
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         return userRepository.findById(id)
-            .map(this::toUserResponse)
+            .map(user -> toUserResponse(user, false))
             .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
     }
 
@@ -110,11 +110,11 @@ public class UserService {
         userRepository.save(user);
     }
 
-    private UserResponse toUserResponse(User user) {
+    private UserResponse toUserResponse(User user, boolean includeCpf) {
         return new UserResponse(
             user.getId(),
             user.getName(),
-            user.getCpf(),
+            includeCpf ? user.getCpf() : null,
             user.getEmail(),
             user.getPhone(),
             user.getRole(),

@@ -20,6 +20,20 @@ function formatDate(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function formatAddress(address) {
+  if (!address) return 'Nenhum endereço cadastrado';
+  return [
+    address.street,
+    address.number,
+    address.neighborhood,
+    address.city,
+    address.state,
+    address.zipCode,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 function statusLabel(status) {
   return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
@@ -211,6 +225,32 @@ function AdminOrdersPage() {
                   </dd>
                 </div>
               </dl>
+
+              <div className="order-detail-section">
+                <p className="section-title">Endereço de entrega</p>
+                <p className="order-address">
+                  {formatAddress(selectedPedido.enderecoEntrega)}
+                </p>
+              </div>
+
+              <div className="order-detail-section">
+                <p className="section-title">Itens do pedido</p>
+                <div className="order-items-grid">
+                  {(selectedPedido.itens ?? []).map((item) => (
+                    <article key={item.id} className="order-item-card">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.nome} />
+                      ) : (
+                        <div className="order-item-placeholder">Sem imagem</div>
+                      )}
+                      <div>
+                        <strong>{item.nome}</strong>
+                        <span>{formatCurrency(item.preco)}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <p className="muted-message">Selecione um pedido para verificar os dados.</p>
