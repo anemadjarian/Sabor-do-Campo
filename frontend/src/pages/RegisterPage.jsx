@@ -2,6 +2,7 @@ import { useState } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { createUser } from "../services/registerService";
+import { validateCpf } from "../services/cpfService";
 
 function RegisterPage({ onNavigate }) {
   const [form, setForm] = useState({
@@ -28,6 +29,12 @@ function RegisterPage({ onNavigate }) {
 
     if (!validatePhone(form.phone)) {
       setStatus({ type: "error", message: "Telefone invalido. Informe DDD e 10 ou 11 digitos." });
+      return;
+    }
+
+    const isCpfValid = await validateCpf(form.cpf);
+    if (!isCpfValid) {
+      setStatus({ type: "error", message: "CPF invalido. Verifique seus dados." });
       return;
     }
 

@@ -585,8 +585,12 @@ button {
 }
 
 .product-form label {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
 }
 
 .product-form label span {
@@ -608,6 +612,11 @@ button {
   box-sizing: border-box;
 }
 
+.product-form input[type='tel'] {
+  width: 100%;
+  min-width: 0;
+}
+
 .product-form textarea {
   min-height: 140px;
   resize: vertical;
@@ -627,16 +636,21 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
   gap: 20px;
+  align-items: start;
 }
 
 .product-form .form-row > label {
   min-width: 0;
 }
 
-.product-form .submit-button,
-.product-form .link-button {
-  width: 100%;
-  justify-self: stretch;
+.product-form .form-row > label:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 700px) {
+  .product-form .form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cancel-edit-button {

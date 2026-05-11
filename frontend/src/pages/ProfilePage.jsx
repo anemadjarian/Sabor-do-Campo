@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { updateUser, getCurrentUser } from "../services/profileService";
+import { validateCpf } from "../services/cpfService";
 
 function ProfilePage({ onNavigate, onLogout }) {
   const [form, setForm] = useState({
@@ -41,6 +42,14 @@ function ProfilePage({ onNavigate, onLogout }) {
   async function handleSubmit(e) {
     e.preventDefault();
     const isChangingPassword = Boolean(form.password?.trim());
+
+    if (form.cpf.trim()) {
+      const isCpfValid = await validateCpf(form.cpf);
+      if (!isCpfValid) {
+        setStatus({ type: "error", message: "CPF invalido. Verifique seus dados." });
+        return;
+      }
+    }
 
     try {
       await updateUser(form);
