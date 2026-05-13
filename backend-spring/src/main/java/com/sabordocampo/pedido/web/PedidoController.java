@@ -51,11 +51,6 @@ public class PedidoController {
         return pedidoService.buscarPedidoAtivo(authentication.getName());
     }
 
-    @GetMapping("/pedidos/me/ativos")
-    public List<PedidoResponse> listarPedidosAtivos(Authentication authentication) {
-        return pedidoService.listarPedidosAtivos(authentication.getName());
-    }
-
     @GetMapping("/admin/pedidos")
     public List<PedidoResponse> listarPedidos() {
         return pedidoService.listarTodos();

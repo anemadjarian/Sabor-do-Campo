@@ -4,7 +4,7 @@ import MenuPage from './pages/MenuPage';
 import ProductFormPage from './pages/ProductFormPage';
 import { useMenu } from './hooks/useMenu';
 import { fetchCart, createCartItem, removeCartItem } from './services/cartService';
-import { confirmarPedido, listarMeusPedidos } from './services/pedidoService';
+import { confirmarPedido, buscarPedidoAtivo } from './services/pedidoService';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import PedidoStatusPage from './pages/PedidoStatusPage';
 import LoginPage from './pages/LoginPage';
@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage';
 import HomePage from './pages/HomePage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
+import HistoricoPedidosPage from './pages/HistoricoPedidosPage';
 import { getCurrentUser } from './services/profileService';
 import { notifyError } from './services/notificationService';
 import { ToastContainer } from 'react-toastify';
@@ -55,7 +56,7 @@ function App() {
     address: null
   });
 
-  const [pedidosUsuario, setPedidosUsuario] = useState([]);
+  const [pedidoAtivo, setPedidoAtivo] = useState(null);
   const [isLoadingPedidosUsuario, setIsLoadingPedidosUsuario] = useState(false);
 
   // carregar user pelo token
@@ -78,29 +79,25 @@ function App() {
   //  carregar pedidos do usuario logado pelo banco
   useEffect(() => {
     if (!user || user.role === 'ROLE_ADMIN') {
-      setPedidosUsuario([]);
+      setPedidoAtivo(null);
       setIsLoadingPedidosUsuario(false);
       return;
     }
 
     let isCurrent = true;
 
-    async function loadPedidosUsuario() {
+    async function loadPedidoAtivo() {
       setIsLoadingPedidosUsuario(true);
 
       try {
-        const pedidos = await listarMeusPedidos();
+        const pedido = await buscarPedidoAtivo();
         if (!isCurrent) return;
-        setPedidosUsuario(
-          Array.isArray(pedidos)
-            ? pedidos.filter((pedido) => pedido.status !== 'PEDIDO_ENTREGUE')
-            : []
-        );
+        setPedidoAtivo(pedido);
       } catch (error) {
         if (isCurrent) {
           console.error(error);
           notifyError('Erro ao carregar seus pedidos.');
-          setPedidosUsuario([]);
+          setPedidoAtivo(null);
         }
       } finally {
         if (isCurrent) {
@@ -109,7 +106,7 @@ function App() {
       }
     }
 
-    loadPedidosUsuario();
+    loadPedidoAtivo();
 
     return () => {
       isCurrent = false;
@@ -185,27 +182,21 @@ function App() {
     }
 
     const pedido = await confirmarPedido(cart.id);
-    setPedidosUsuario((current) => [
-      pedido,
-      ...current.filter((item) => item.id !== pedido.id && item.status !== 'PEDIDO_ENTREGUE'),
-    ]);
+    setPedidoAtivo(pedido);
     await loadCart();
     setActivePage('pedidoStatus');
   };
 
   const handlePedidoStatusChange = useCallback((pedidoId, nextStatus) => {
-    setPedidosUsuario((current) => {
-      let changed = false;
-      const nextPedidos = current.map((pedido) => {
-        if (pedido.id !== pedidoId || pedido.status === nextStatus) {
-          return pedido;
-        }
+    setPedidoAtivo((current) => {
+      if(!current || current.id !== pedidoId) {
+        return current;
+      }
+      if(nextStatus === 'PEDIDO_ENTREGUE') {
+        return null;
+      }
 
-        changed = true;
-        return { ...pedido, status: nextStatus };
-      }).filter((pedido) => pedido.status !== 'PEDIDO_ENTREGUE');
-
-      return changed ? nextPedidos : current;
+        return { ...current, status: nextStatus };
     });
   }, []);
 
@@ -227,7 +218,7 @@ function App() {
     localStorage.removeItem('guest_cart');
     localStorage.removeItem(ACTIVE_PAGE_STORAGE_KEY);
     setUser(null);
-    setPedidosUsuario([]);
+    setPedidoAtivo(null);
     setCart({ id: null, items: [], address: null });
     setActivePage('home');
   }
@@ -343,11 +334,27 @@ function App() {
             <AdminOrdersPage />
           ) : (
             <PedidoStatusPage
-              pedidos={pedidosUsuario}
+              pedido={pedidoAtivo}
               isLoading={isLoadingPedidosUsuario}
               onBackToMenu={() => setActivePage('menu')}
               onStatusChange={handlePedidoStatusChange}
+              onOpenHistorico={() => setActivePage('historicoPedidos')}
             />
+          )
+        )}
+
+        {activePage === 'historicoPedidos' && (
+          user ? (
+            <HistoricoPedidosPage
+              onBack={() => setActivePage('pedidoStatus')}
+            />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <h2>Acesso restrito</h2>
+                <p>Você precisa estar logado.</p>
+              </div>
+            </section>
           )
         )}
 

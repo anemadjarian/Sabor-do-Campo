@@ -3,7 +3,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import logoImage from '../assets/imgs/logo.svg';
 
-function Header({ activePage, onNavigate, cartCount, pages, hasActivePedido, user, showCart = true }) {
+function Header({ activePage, onNavigate, cartCount, pages, user, showCart = true }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleNavigate = (page) => {
@@ -75,16 +75,6 @@ function Header({ activePage, onNavigate, cartCount, pages, hasActivePedido, use
             {label}
           </button>
         ))}
-
-        {hasActivePedido && (
-          <button
-            type="button"
-            className={activePage === 'pedidoStatus' ? 'nav-button active' : 'nav-button'}
-            onClick={() => handleNavigate('pedidoStatus')}
-          >
-            Pedidos
-          </button>
-        )}
 
         {showCart ? (
           <button

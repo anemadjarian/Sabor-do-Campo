@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { confirmarEntregaPedido } from '../services/pedidoService';
 
 const STATUS_FLOW = [
@@ -29,23 +29,10 @@ function formatCurrency(value) {
   });
 }
 
-function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMenu, onStatusChange }) {
-  const availablePedidos = useMemo(() => (
-    pedidos.length > 0 ? pedidos : pedido?.id ? [pedido] : []
-  ), [pedido, pedidos]);
-
-  const [selectedPedidoId, setSelectedPedidoId] = useState(availablePedidos[0]?.id ?? null);
-  const currentPedido = availablePedidos.find((item) => item.id === selectedPedidoId)
-    ?? availablePedidos[0]
-    ?? null;
+function PedidoStatusPage({ pedido, isLoading = false, onBackToMenu, onStatusChange, onOpenHistorico }) {
+  const currentPedido = pedido;
   const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
   const status = currentPedido?.status ?? 'PEDIDO_FEITO';
-
-  useEffect(() => {
-    if (!availablePedidos.some((item) => item.id === selectedPedidoId)) {
-      setSelectedPedidoId(availablePedidos[0]?.id ?? null);
-    }
-  }, [availablePedidos, selectedPedidoId]);
 
   const currentStep = useMemo(() => STATUS_FLOW.indexOf(status), [status]);
   const safeStep = currentStep < 0 ? 0 : currentStep;
@@ -82,6 +69,10 @@ function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMen
       <section className="hero-card">
         <div className="hero-copy">
           <h2>Nenhum pedido encontrado</h2>
+          <p>Quando você fizer um pedido, ele aparecerá aqui.</p>
+          <button className="edit-address-button" onClick={onOpenHistorico}>
+            Ver histórico
+          </button>
           <button className="edit-address-button" onClick={onBackToMenu}>
             Voltar ao cardápio
           </button>
@@ -93,27 +84,11 @@ function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMen
   return (
       <section className="hero-card">
         <div className="hero-copy">
-          <h2>Status dos pedidos</h2>
+          <h2>Status do pedido</h2>
           <p className="pedido-code">Codigo: {currentPedido.codigo}</p>
         </div>
 
         <div className="menu-panel">
-          {availablePedidos.length > 1 ? (
-            <div className="pedido-switcher" aria-label="Pedidos em andamento">
-              {availablePedidos.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={item.id === currentPedido.id ? 'active' : ''}
-                  onClick={() => setSelectedPedidoId(item.id)}
-                >
-                  <strong>{item.codigo}</strong>
-                  <span>{STATUS_LABEL[item.status] ?? item.status}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           <div className="status-summary">
             <p className="status-summary-label">Etapa atual</p>
             <div className="status-summary-main">
@@ -185,7 +160,12 @@ function PedidoStatusPage({ pedido, pedidos = [], isLoading = false, onBackToMen
                 {isConfirmingDelivery ? 'Confirmando...' : 'Confirmar entrega'}
               </button>
             ) : null}
-
+            <button
+              className="edit-address-button"
+              onClick={onOpenHistorico}
+            >
+              Ver histórico
+            </button>
             <button className="edit-address-button" onClick={onBackToMenu}>
               Voltar ao cardápio
             </button>

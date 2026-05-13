@@ -2,7 +2,7 @@ import { useState } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { createUser } from "../services/registerService";
-import { validateCpf } from "../services/cpfService";
+// import { validateCpf } from "../services/cpfService";
 
 function RegisterPage({ onNavigate }) {
   const [form, setForm] = useState({

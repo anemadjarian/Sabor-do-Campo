@@ -1586,6 +1586,46 @@ button {
   font-weight: 700;
 }
 
+.pedido-history-list {
+  display: grid;
+  gap: 18px;
+}
+
+.pedido-history-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(114, 139, 102, 0.22);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pedido-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pedido-history-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.pedido-history-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(114, 139, 102, 0.18);
+}
+
+.pedido-history-footer p {
+  margin: 0;
+  color: var(--muted);
+}
+
 @keyframes modalFadeIn {
   from {
     opacity: 0;

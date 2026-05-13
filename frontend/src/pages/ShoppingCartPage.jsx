@@ -12,7 +12,8 @@ function ShoppingCartPage({
   onRequireLogin,
   onAddressUpdate,
   onRemoveItem,
-  onConfirmarPedido
+  onConfirmarPedido,
+  hasActivePedido
 }) {
 
   const [showModal, setShowModal] = useState(false);
@@ -111,8 +112,9 @@ function ShoppingCartPage({
             </div>
             <strong>R$ {total.toFixed(2).replace('.', ',')}</strong>
           </div>
-          <button className="edit-address-button" onClick={handleConfirmarPedido} disabled={isConfirming}>
-            {!isLoggedIn ? 'Entrar para confirmar pedido' : isConfirming ? 'Confirmando...' : 'Confirmar pedido'}
+          <button className="edit-address-button" onClick={handleConfirmarPedido} disabled={isConfirming || hasActivePedido}>
+            { hasActivePedido ? 'Você já possui um pedido em andamento' :
+            !isLoggedIn ? 'Entrar para confirmar pedido' : isConfirming ? 'Confirmando...' : 'Confirmar pedido'}
           </button>
         </>
       )}

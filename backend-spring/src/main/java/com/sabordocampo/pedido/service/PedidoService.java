@@ -42,6 +42,12 @@ public class PedidoService {
 
     @Transactional
     public PedidoResponse criarAPartirDoCarrinho(Long cartId, String email) {
+        if (pedidoRepository.existsByUserEmailAndStatusNot(email, PedidoStatus.PEDIDO_ENTREGUE)) {
+            throw new IllegalStateException(
+                "Voce ja possui um pedido em andamento."
+            );
+        }
+
         ShoppingCart carrinho = shoppingCartRepository.findById(cartId)
             .orElseThrow(() -> new IllegalArgumentException("Carrinho nao encontrado."));
 
@@ -113,26 +119,18 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarMeusPedidos(String email) {
-        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
+        return pedidoRepository.findByUserEmailAndStatusOrderByCriadoEmDesc(email, PedidoStatus.PEDIDO_ENTREGUE).stream()
             .map(this::toPedidoResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public PedidoResponse buscarPedidoAtivo(String email) {
-        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
-            .filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
+        return pedidoRepository.findByUserEmailAndStatusNotOrderByCriadoEmDesc(email, PedidoStatus.PEDIDO_ENTREGUE).stream()
+            //.filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
             .findFirst()
             .map(this::toPedidoResponse)
             .orElse(null);
-    }
-
-    @Transactional(readOnly = true)
-    public List<PedidoResponse> listarPedidosAtivos(String email) {
-        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
-            .filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
-            .map(this::toPedidoResponse)
-            .toList();
     }
 
     @Transactional(readOnly = true)

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { updateUser, getCurrentUser } from "../services/profileService";
-import { validateCpf } from "../services/cpfService";
+// import { validateCpf } from "../services/cpfService";
 
 function ProfilePage({ onNavigate, onLogout }) {
   const [form, setForm] = useState({
