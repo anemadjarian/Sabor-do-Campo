@@ -1,6 +1,7 @@
 package com.sabordocampo.user.service;
 
 import com.sabordocampo.cart.domain.Address;
+import com.sabordocampo.cart.domain.ShoppingCart;
 import com.sabordocampo.cart.dto.AddressResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
 import com.sabordocampo.user.domain.Role;
@@ -46,6 +47,9 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setPhone(normalizePhone(request.phone()));
         user.setRole(Role.ROLE_USER);
+        ShoppingCart cart = new ShoppingCart();
+        cart.setUser(user);
+        user.setCart(cart);
         userRepository.save(user);
         return toUserResponse(user, true);
     }
