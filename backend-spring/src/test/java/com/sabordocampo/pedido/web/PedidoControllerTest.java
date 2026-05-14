@@ -57,7 +57,13 @@ class PedidoControllerTest {
             PedidoStatus.PEDIDO_FEITO,
             List.of(new PedidoItemResponse(1L, 10L, "Prato Executivo", new BigDecimal("25.00"), "img")),
             new AddressResponse("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", "Apto 1"),
-            new BigDecimal("25.00")
+            new BigDecimal("25.00"),
+            new BigDecimal("7.88"),
+            new BigDecimal("1.50"),
+            new BigDecimal("32.88"),
+            2L,
+            "Cliente",
+            "cliente@sabor.com"
         );
 
         when(pedidoService.criarAPartirDoCarrinho(99L, "cliente@sabor.com")).thenReturn(response);
@@ -69,7 +75,10 @@ class PedidoControllerTest {
             .andExpect(jsonPath("$.codigo").value("PED-ABC12345"))
             .andExpect(jsonPath("$.status").value("PEDIDO_FEITO"))
             .andExpect(jsonPath("$.itens[0].nome").value("Prato Executivo"))
-            .andExpect(jsonPath("$.precoTotal").value(25.00));
+            .andExpect(jsonPath("$.subtotalProdutos").value(25.00))
+            .andExpect(jsonPath("$.frete").value(7.88))
+            .andExpect(jsonPath("$.distanciaEntregaKm").value(1.50))
+            .andExpect(jsonPath("$.precoTotal").value(32.88));
     }
 
     @Test

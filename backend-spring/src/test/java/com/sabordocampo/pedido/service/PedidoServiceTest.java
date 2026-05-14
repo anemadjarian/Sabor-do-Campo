@@ -15,6 +15,7 @@ import com.sabordocampo.menu.domain.MenuItem;
 import com.sabordocampo.pedido.domain.Pedido;
 import com.sabordocampo.pedido.domain.PedidoStatus;
 import com.sabordocampo.pedido.dto.PedidoResponse;
+import com.sabordocampo.pedido.dto.PedidoStatusRequest;
 import com.sabordocampo.pedido.dto.PedidoStatusResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
 import com.sabordocampo.user.domain.Role;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -39,6 +41,9 @@ class PedidoServiceTest {
     @Mock
     private PedidoRepository pedidoRepository;
 
+    @Spy
+    private FreteService freteService = new FreteService();
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -46,7 +51,7 @@ class PedidoServiceTest {
     void criarAPartirDoCarrinhoDeveCriarPedidoEEsvaziarCarrinho() {
         ShoppingCart carrinho = new ShoppingCart();
         carrinho.setUser(user("cliente@sabor.com"));
-        carrinho.setAddress(new Address("Rua A", "10", "Centro", "Cidade", "SP", "12345-678", "Apto 1"));
+        carrinho.setAddress(new Address("Rua A", "10", "Castelo", "Belo Horizonte", "MG", "31330-000", "Apto 1"));
 
         MenuItem prato = new MenuItem("Prato Executivo", "Desc", new BigDecimal("25.00"), Category.PRATO_PRINCIPAL, "Ingredientes", "  https://img/prato.jpg  ");
         ReflectionTestUtils.setField(prato, "id", 11L);
@@ -68,7 +73,10 @@ class PedidoServiceTest {
         assertThat(response.itens()).hasSize(2);
         assertThat(response.itens().get(0).imageUrl()).isEqualTo("https://img/prato.jpg");
         assertThat(response.itens().get(1).imageUrl()).isEqualTo("");
-        assertThat(response.precoTotal()).isEqualByComparingTo("32.50");
+        assertThat(response.subtotalProdutos()).isEqualByComparingTo("32.50");
+        assertThat(response.frete()).isEqualByComparingTo("7.88");
+        assertThat(response.distanciaEntregaKm()).isEqualByComparingTo("1.50");
+        assertThat(response.precoTotal()).isEqualByComparingTo("40.38");
 
         ArgumentCaptor<Pedido> pedidoCaptor = ArgumentCaptor.forClass(Pedido.class);
         verify(pedidoRepository).save(pedidoCaptor.capture());
@@ -78,6 +86,8 @@ class PedidoServiceTest {
         assertThat(pedidoSalvo.getEnderecoEntrega().getStreet()).isEqualTo("Rua A");
         assertThat(pedidoSalvo.getUser()).isNotNull();
         assertThat(pedidoSalvo.getUser().getEmail()).isEqualTo("cliente@sabor.com");
+        assertThat(pedidoSalvo.getFrete()).isEqualByComparingTo("7.88");
+        assertThat(pedidoSalvo.getDistanciaEntregaKm()).isEqualByComparingTo("1.50");
 
         assertThat(carrinho.getItems()).isEmpty();
     }
@@ -134,8 +144,9 @@ class PedidoServiceTest {
     }
 
     @Test
-    void buscarStatusDeveRetornarPedidoEmPreparoEntreUmEDoisMinutos() {
+    void buscarStatusDeveRetornarStatusPersistidoEmPreparo() {
         Pedido pedido = new Pedido("PED-BBBB2222", LocalDateTime.now().minusSeconds(90), endereco());
+        pedido.setStatus(PedidoStatus.PEDIDO_EM_PREPARO);
         when(pedidoRepository.findByIdAndUserEmail(20L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
         PedidoStatusResponse response = pedidoService.buscarStatus(20L, "cliente@sabor.com");
@@ -144,8 +155,9 @@ class PedidoServiceTest {
     }
 
     @Test
-    void buscarStatusDeveRetornarPedidoEmRotaAposDoisMinutos() {
+    void buscarStatusDeveRetornarStatusPersistidoEmRota() {
         Pedido pedido = new Pedido("PED-CCCC3333", LocalDateTime.now().minusMinutes(3), endereco());
+        pedido.setStatus(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
         when(pedidoRepository.findByIdAndUserEmail(30L, "cliente@sabor.com")).thenReturn(Optional.of(pedido));
 
         PedidoStatusResponse response = pedidoService.buscarStatus(30L, "cliente@sabor.com");
@@ -162,6 +174,20 @@ class PedidoServiceTest {
 
         assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_ENTREGUE);
         assertThat(pedido.getEntregueEm()).isNotNull();
+    }
+
+    @Test
+    void atualizarStatusDevePermitirAdminAlterarPedido() {
+        Pedido pedido = new Pedido("PED-EEEE5555", LocalDateTime.now(), endereco());
+        when(pedidoRepository.findById(50L)).thenReturn(Optional.of(pedido));
+
+        PedidoResponse response = pedidoService.atualizarStatus(
+            50L,
+            new PedidoStatusRequest(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA)
+        );
+
+        assertThat(response.status()).isEqualTo(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
+        assertThat(pedido.getStatus()).isEqualTo(PedidoStatus.PEDIDO_EM_ROTA_DE_ENTREGA);
     }
 
     private Address endereco() {

@@ -6,6 +6,7 @@ import com.sabordocampo.menu.dto.CategoryResponse;
 import com.sabordocampo.menu.dto.MenuItemRequest;
 import com.sabordocampo.menu.dto.MenuItemResponse;
 import com.sabordocampo.menu.repository.MenuItemRepository;
+import com.sabordocampo.cart.repository.CartItemRepository;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -15,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MenuService {
     private final MenuItemRepository menuItemRepository;
+    private final CartItemRepository cartItemRepository;
 
-    public MenuService(MenuItemRepository menuItemRepository) {
+    public MenuService(MenuItemRepository menuItemRepository, CartItemRepository cartItemRepository) {
         this.menuItemRepository = menuItemRepository;
+        this.cartItemRepository = cartItemRepository;
     }
 
     @Transactional(readOnly = true)
@@ -44,10 +47,37 @@ public class MenuService {
             request.price(),
             Category.fromValue(request.category()),
             normalizeIngredients(request.ingredients()),
-            normalizeOptional(request.imageUrl())
+            normalizeImageUrl(request.imageUrl())
         );
 
         return toResponse(menuItemRepository.save(menuItem));
+    }
+
+    @Transactional
+    public MenuItemResponse updateMenuItem(Long id, MenuItemRequest request) {
+        MenuItem menuItem = menuItemRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Produto nao encontrado."));
+
+        menuItem.update(
+            request.name().trim(),
+            request.description().trim(),
+            request.price(),
+            Category.fromValue(request.category()),
+            normalizeIngredients(request.ingredients()),
+            normalizeImageUrl(request.imageUrl())
+        );
+
+        return toResponse(menuItemRepository.save(menuItem));
+    }
+
+    @Transactional
+    public void deleteMenuItem(Long id) {
+        if (!menuItemRepository.existsById(id)) {
+            throw new IllegalArgumentException("Produto nao encontrado.");
+        }
+
+        cartItemRepository.deleteByMenuItemId(id);
+        menuItemRepository.deleteById(id);
     }
 
     @Transactional
@@ -137,5 +167,19 @@ public class MenuService {
 
     private String normalizeOptional(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String normalizeImageUrl(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized.isBlank()) {
+            return "";
+        }
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            return normalized;
+        }
+        if (normalized.startsWith("www.")) {
+            return "https://" + normalized;
+        }
+        return normalized;
     }
 }

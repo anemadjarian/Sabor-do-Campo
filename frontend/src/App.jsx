@@ -1,27 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Header from './components/Header';
 import MenuPage from './pages/MenuPage';
 import ProductFormPage from './pages/ProductFormPage';
 import { useMenu } from './hooks/useMenu';
 import { fetchCart, createCartItem, removeCartItem } from './services/cartService';
-import { confirmarPedido } from './services/pedidoService';
+import { confirmarPedido, buscarPedidoAtivo } from './services/pedidoService';
 import ShoppingCartPage from './pages/ShoppingCartPage';
 import PedidoStatusPage from './pages/PedidoStatusPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import HomePage from './pages/HomePage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminOrdersPage from './pages/AdminOrdersPage';
+import HistoricoPedidosPage from './pages/HistoricoPedidosPage';
+import { getCurrentUser } from './services/profileService';
+import { notifyError } from './services/notificationService';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-const PEDIDO_STORAGE_KEY = 'pedido_atual';
+const ACTIVE_PAGE_STORAGE_KEY = 'active_page';
 
 const pages = {
-  menu: 'Cardapio',
-  admin: 'Cadastro'
+  menu: 'Cardápio'
 };
 
 function App() {
-  const [activePage, setActivePage] = useState('home');
+  const [activePage, setActivePage] = useState(() => (
+    localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) || 'home'
+  ));
   const [user, setUser] = useState(null);
+  const isAdmin = user?.role === 'ROLE_ADMIN';
+  const visiblePages = {
+    ...pages,
+    ...(user && !isAdmin ? { pedidoStatus: 'Pedidos' } : {}),
+    ...(isAdmin ? { admin: 'Produtos', adminUsers: 'Usuarios', adminOrders: 'Pedidos' } : {}),
+  };
 
   const {
     categories,
@@ -32,6 +46,8 @@ function App() {
     setSelectedCategory,
     refreshMenu,
     addMenuItem,
+    editMenuItem,
+    removeMenuItem,
   } = useMenu();
 
   const [cart, setCart] = useState({
@@ -40,52 +56,78 @@ function App() {
     address: null
   });
 
-  const [pedidoAtual, setPedidoAtual] = useState(() => {
-    const saved = localStorage.getItem(PEDIDO_STORAGE_KEY);
-    if (!saved) return null;
-
-    try {
-      return JSON.parse(saved);
-    } catch {
-      localStorage.removeItem(PEDIDO_STORAGE_KEY);
-      return null;
-    }
-  });
+  const [pedidoAtivo, setPedidoAtivo] = useState(null);
+  const [isLoadingPedidosUsuario, setIsLoadingPedidosUsuario] = useState(false);
 
   // carregar user pelo token
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) setUser({ token });
+    if (!token) return;
+
+    getCurrentUser()
+      .then((data) => setUser({ ...data, token }))
+      .catch(() => {
+        localStorage.removeItem('token');
+        setUser(null);
+      });
   }, []);
 
-  //  salvar pedido
   useEffect(() => {
-    if (!pedidoAtual?.id) {
-      localStorage.removeItem(PEDIDO_STORAGE_KEY);
+    localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+  }, [activePage]);
+
+  //  carregar pedidos do usuario logado pelo banco
+  useEffect(() => {
+    if (!user || user.role === 'ROLE_ADMIN') {
+      setPedidoAtivo(null);
+      setIsLoadingPedidosUsuario(false);
       return;
     }
 
-    localStorage.setItem(PEDIDO_STORAGE_KEY, JSON.stringify(pedidoAtual));
-  }, [pedidoAtual]);
+    let isCurrent = true;
+
+    async function loadPedidoAtivo() {
+      setIsLoadingPedidosUsuario(true);
+
+      try {
+        const pedido = await buscarPedidoAtivo();
+        if (!isCurrent) return;
+        setPedidoAtivo(pedido);
+      } catch (error) {
+        if (isCurrent) {
+          console.error(error);
+          notifyError('Erro ao carregar seus pedidos.');
+          setPedidoAtivo(null);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingPedidosUsuario(false);
+        }
+      }
+    }
+
+    loadPedidoAtivo();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [user?.id, user?.role]);
 
   //  carregar carrinho do usuário
   useEffect(() => {
-    if (user) loadCart();
-  }, [user]);
-
-  // carrinho guest
-  useEffect(() => {
-    if (!user) {
-      const saved = localStorage.getItem('guest_cart');
-      if (saved) setCart(JSON.parse(saved));
+    if (user && user.role !== 'ROLE_ADMIN') {
+      loadCart();
+      return;
     }
+
+    setCart({ id: null, items: [], address: null });
   }, [user]);
 
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('guest_cart', JSON.stringify(cart));
+    if (isAdmin && activePage === 'cart') {
+      setActivePage('adminOrders');
     }
-  }, [cart, user]);
+  }, [activePage, isAdmin]);
 
   const cartCount = cart.items.length;
 
@@ -106,10 +148,13 @@ function App() {
 
   const handleAddToCart = async (item) => {
     if (!user) {
-      setCart(prev => ({
-        ...prev,
-        items: [...prev.items, item]
-      }));
+      notifyError('Voce precisa estar logado para adicionar itens ao carrinho.');
+      setActivePage('login');
+      return;
+    }
+
+    if (isAdmin) {
+      notifyError('O administrador nao usa carrinho.');
       return;
     }
 
@@ -122,7 +167,7 @@ function App() {
       await removeCartItem(itemId);
       await loadCart();
     } catch {
-      alert('Erro ao remover item');
+      notifyError('Erro ao remover item');
     }
   };
 
@@ -137,39 +182,45 @@ function App() {
     }
 
     const pedido = await confirmarPedido(cart.id);
-    setPedidoAtual(pedido);
+    setPedidoAtivo(pedido);
     await loadCart();
     setActivePage('pedidoStatus');
   };
 
-  const handlePedidoStatusChange = (nextStatus) => {
-    setPedidoAtual(prev => {
-      if (!prev?.id || prev.status === nextStatus) return prev;
-      return { ...prev, status: nextStatus };
+  const handlePedidoStatusChange = useCallback((pedidoId, nextStatus) => {
+    setPedidoAtivo((current) => {
+      if(!current || current.id !== pedidoId) {
+        return current;
+      }
+      if(nextStatus === 'PEDIDO_ENTREGUE') {
+        return null;
+      }
+
+        return { ...current, status: nextStatus };
     });
-  };
+  }, []);
 
   //  auth
   async function handleLogin(userData) {
     setUser(userData);
 
-    // migrar carrinho guest → backend
-    for (const item of cart.items) {
-      await createCartItem(item.id);
-    }
-
     setCart({ id: null, items: [], address: null });
     localStorage.removeItem('guest_cart');
 
-    await loadCart();
+    if (userData.role !== 'ROLE_ADMIN') {
+      await loadCart();
+    }
     setActivePage('menu');
   }
 
   function handleLogout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('guest_cart');
+    localStorage.removeItem(ACTIVE_PAGE_STORAGE_KEY);
     setUser(null);
+    setPedidoAtivo(null);
     setCart({ id: null, items: [], address: null });
-    setActivePage('menu');
+    setActivePage('home');
   }
 
   return (
@@ -178,12 +229,13 @@ function App() {
         activePage={activePage}
         onNavigate={setActivePage}
         cartCount={cartCount}
-        pages={pages}
+        pages={visiblePages}
         user={user}
-        hasActivePedido={Boolean(
-          user && pedidoAtual?.id && pedidoAtual?.status !== 'PEDIDO_ENTREGUE'
-        )}
+        showCart={!isAdmin}
+        hasActivePedido={false}
       />
+
+      <ToastContainer />
 
       <main className="page-content">
         {activePage === 'home' && <HomePage onGoToMenu={() => setActivePage('menu')} />}
@@ -197,43 +249,127 @@ function App() {
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             onAddToCart={handleAddToCart}
+            isLoggedIn={Boolean(user)}
+            canAddToCart={!isAdmin}
+            onRequireLogin={() => {
+              notifyError('Voce precisa estar logado para adicionar itens ao carrinho.');
+              setActivePage('login');
+            }}
             onRetry={refreshMenu}
           />
         )}
 
         {activePage === 'admin' && (
-          <ProductFormPage
-            categories={categories}
-            onSubmit={addMenuItem}
-            onSuccess={() => {
-              refreshMenu();
-              setActivePage('menu');
-            }}
-          />
+          isAdmin ? (
+            <ProductFormPage
+              categories={categories}
+              items={items}
+              onSubmit={(idOrPayload, maybePayload) => (
+                typeof idOrPayload === 'number'
+                  ? editMenuItem(idOrPayload, maybePayload)
+                  : addMenuItem(idOrPayload)
+              )}
+              onDelete={removeMenuItem}
+              onSuccess={() => {
+                refreshMenu();
+              }}
+            />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <p className="eyebrow">Acesso restrito</p>
+                <h2>Area do admin</h2>
+                <p>Entre com o usuario administrador para cadastrar produtos.</p>
+              </div>
+            </section>
+          )
+        )}
+
+        {activePage === 'adminUsers' && (
+          isAdmin ? (
+            <AdminUsersPage />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <p className="eyebrow">Acesso restrito</p>
+                <h2>Usuarios</h2>
+                <p>Entre com o usuario administrador para gerenciar usuarios.</p>
+              </div>
+            </section>
+          )
+        )}
+
+        {activePage === 'adminOrders' && (
+          isAdmin ? (
+            <AdminOrdersPage />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <p className="eyebrow">Acesso restrito</p>
+                <h2>Pedidos</h2>
+                <p>Entre com o usuario administrador para gerenciar pedidos.</p>
+              </div>
+            </section>
+          )
         )}
 
         {activePage === 'cart' && (
-          <ShoppingCartPage
-            items={cart.items}
-            address={cart.address}
-            isLoggedIn={Boolean(user)}
-            onRequireLogin={() => setActivePage('login')}
-            onRemoveItem={handleRemoveFromCart}
-            onAddressUpdate={loadCart}
-            onConfirmarPedido={handleConfirmarPedido}
-          />
+          isAdmin ? (
+            <AdminOrdersPage />
+          ) : (
+            <ShoppingCartPage
+              items={cart.items}
+              address={cart.address}
+              isLoggedIn={Boolean(user)}
+              onRequireLogin={() => setActivePage('login')}
+              onRemoveItem={handleRemoveFromCart}
+              onAddressUpdate={loadCart}
+              onConfirmarPedido={handleConfirmarPedido}
+            />
+          )
         )}
 
         {activePage === 'pedidoStatus' && (
-          <PedidoStatusPage
-            pedido={pedidoAtual}
-            onBackToMenu={() => setActivePage('menu')}
-            onStatusChange={handlePedidoStatusChange}
-          />
+          isAdmin ? (
+            <AdminOrdersPage />
+          ) : (
+            <PedidoStatusPage
+              pedido={pedidoAtivo}
+              isLoading={isLoadingPedidosUsuario}
+              onBackToMenu={() => setActivePage('menu')}
+              onStatusChange={handlePedidoStatusChange}
+              onOpenHistorico={() => setActivePage('historicoPedidos')}
+            />
+          )
+        )}
+
+        {activePage === 'historicoPedidos' && (
+          user ? (
+            <HistoricoPedidosPage
+              onBack={() => setActivePage('pedidoStatus')}
+            />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <h2>Acesso restrito</h2>
+                <p>Você precisa estar logado.</p>
+              </div>
+            </section>
+          )
         )}
 
         {activePage === 'profile' && (
-          <ProfilePage onLogout={handleLogout} onNavigate={setActivePage} />
+          user ? (
+            <ProfilePage onLogout={handleLogout} onNavigate={setActivePage} />
+          ) : (
+            <section className="form-page">
+              <div className="form-card">
+                <p className="eyebrow">Acesso restrito</p>
+                <h2>Perfil</h2>
+                <p>Voce precisa estar logado para ver e editar seu perfil.</p>
+              </div>
+            </section>
+          )
         )}
 
         {activePage === 'register' && (

@@ -13,6 +13,12 @@ public record PedidoResponse(
     PedidoStatus status,
     List<PedidoItemResponse> itens,
     AddressResponse enderecoEntrega,
-    BigDecimal precoTotal
+    BigDecimal subtotalProdutos,
+    BigDecimal frete,
+    BigDecimal distanciaEntregaKm,
+    BigDecimal precoTotal,
+    Long userId,
+    String userName,
+    String userEmail
 ) {
 }

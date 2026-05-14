@@ -46,12 +46,16 @@ public class CartService {
             });
     }
     
-
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingCartResponse getMyCart(String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         ShoppingCart cart = shoppingCartRepository.findByUserEmail(email)
-            .orElseThrow(() -> new RuntimeException("Carrinho não encontrado"));
-
+            .orElseGet(() -> {
+                ShoppingCart newCart = new ShoppingCart();
+                newCart.setUser(user);
+                return shoppingCartRepository.save(newCart);
+            });
         return toShoppingCartResponse(cart);
     }
 

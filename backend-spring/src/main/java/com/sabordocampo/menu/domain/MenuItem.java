@@ -33,7 +33,7 @@ public class MenuItem {
     @Column(nullable = false, length = 600)
     private String ingredients;
 
-    @Column(name = "image_url", length = 600)
+    @Column(name = "image_url", length = 1200)
     private String imageUrl;
 
     protected MenuItem() {
@@ -74,5 +74,14 @@ public class MenuItem {
 
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public void update(String name, String description, BigDecimal price, Category category, String ingredients, String imageUrl) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.category = category;
+        this.ingredients = ingredients;
+        this.imageUrl = imageUrl;
     }
 }

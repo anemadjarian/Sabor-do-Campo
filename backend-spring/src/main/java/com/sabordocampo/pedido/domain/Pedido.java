@@ -6,6 +6,8 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,12 +40,22 @@ public class Pedido {
     @Column
     private LocalDateTime entregueEm;
 
+    @Enumerated(EnumType.STRING)
+    @Column
+    private PedidoStatus status = PedidoStatus.PEDIDO_FEITO;
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> itens = new ArrayList<>();
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal frete = BigDecimal.ZERO;
+
+    @Column(precision = 8, scale = 2)
+    private BigDecimal distanciaEntregaKm;
 
     protected Pedido() {
     }
@@ -74,6 +86,20 @@ public class Pedido {
         return entregueEm;
     }
 
+    public PedidoStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PedidoStatus status) {
+        this.status = status;
+        if (status == PedidoStatus.PEDIDO_ENTREGUE && entregueEm == null) {
+            entregueEm = LocalDateTime.now();
+        }
+        if (status != PedidoStatus.PEDIDO_ENTREGUE) {
+            entregueEm = null;
+        }
+    }
+
     public List<PedidoItem> getItens() {
         return itens;
     }
@@ -90,11 +116,32 @@ public class Pedido {
         itens.add(item);
     }
 
+    public BigDecimal getFrete() {
+        return frete == null ? BigDecimal.ZERO : frete;
+    }
+
+    public void setFrete(BigDecimal frete) {
+        this.frete = frete == null ? BigDecimal.ZERO : frete;
+    }
+
+    public BigDecimal getDistanciaEntregaKm() {
+        return distanciaEntregaKm;
+    }
+
+    public void setDistanciaEntregaKm(BigDecimal distanciaEntregaKm) {
+        this.distanciaEntregaKm = distanciaEntregaKm;
+    }
+
     public void confirmarEntrega(LocalDateTime entregueEm) {
         this.entregueEm = entregueEm;
+        this.status = PedidoStatus.PEDIDO_ENTREGUE;
     }
 
     public BigDecimal getPrecoTotal() {
+        return getSubtotalProdutos().add(getFrete());
+    }
+
+    public BigDecimal getSubtotalProdutos() {
         return itens.stream()
             .map(PedidoItem::getPrice)
             .reduce(BigDecimal.ZERO, BigDecimal::add);

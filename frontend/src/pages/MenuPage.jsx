@@ -11,6 +11,9 @@ function MenuPage({
   selectedCategory,
   onCategoryChange,
   onAddToCart,
+  onRequireLogin,
+  isLoggedIn,
+  canAddToCart = true,
   onRetry,
 }) {
   const [search, setSearch] = useState('');
@@ -38,9 +41,36 @@ function MenuPage({
     }, {});
   }, [items, search]);
 
-  const sections = Object.entries(groupedItems);
+  const sections = useMemo(() => {
+    const order = categories.map((category) => category.label);
+
+    return Object.entries(groupedItems).sort(([sectionA], [sectionB]) => {
+      const indexA = order.indexOf(sectionA);
+      const indexB = order.indexOf(sectionB);
+
+      if (indexA === -1 && indexB === -1) {
+        return sectionA.localeCompare(sectionB);
+      }
+      if (indexA === -1) {
+        return 1;
+      }
+      if (indexB === -1) {
+        return -1;
+      }
+      return indexA - indexB;
+    });
+  }, [groupedItems, categories]);
 
   const handleOpenConfirm = (item) => {
+    if (!canAddToCart) {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      onRequireLogin();
+      return;
+    }
+
     setSelectedItem(item);
   };
 
@@ -57,11 +87,10 @@ function MenuPage({
   return (
     <section className="hero-card">
       <div className="hero-copy">
-        <p className="eyebrow">Sabores do Campo</p>
-        <h2>Cardapio do Produto</h2>
+        <p className="eyebrow">Sabor do Campo</p>
+        <h2>Cardápio</h2>
         <p>
-          Uma vitrine leve e elegante para entradas, pratos principais, sobremesas e
-          bebidas, inspirada no visual organico da sua referencia.
+        Um cardápio variado, leve  cuidadosamente elaborado para oferecer uma experiência gastronômica completa, com opções que contemplam entradas, pratos principais e sobremesas. O restaurante possui foco na culinária vegetariana e vegana,  mas também disponibiliza pratos tradicionais para atender a diferentes preferências.
         </p>
       </div>
 
@@ -75,7 +104,7 @@ function MenuPage({
           />
         </div>
 
-        {isLoading ? <p className="feedback-message">Carregando cardapio...</p> : null}
+        {isLoading ? <p className="feedback-message">Carregando cardápio...</p> : null}
 
         {!isLoading && error ? (
           <div className="feedback-card">
@@ -103,7 +132,12 @@ function MenuPage({
 
                 <div className="menu-grid">
                   {sectionItems.map((item) => (
-                    <MenuItemCard key={item.id} item={item} onAddToCart={handleOpenConfirm} />
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      onAddToCart={handleOpenConfirm}
+                      canAddToCart={canAddToCart}
+                    />
                   ))}
                 </div>
               </section>
@@ -144,7 +178,7 @@ function MenuPage({
                 Adicionar
               </button>
               <button type="button" onClick={handleCloseConfirm}>
-                Voltar ao cardapio
+                Voltar ao cardápio
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createMenuItem, fetchCategories, fetchMenuItems } from '../services/menuService';
+import { createMenuItem, deleteMenuItem, fetchCategories, fetchMenuItems, updateMenuItem } from '../services/menuService';
 
 export function useMenu() {
   const [categories, setCategories] = useState([]);
@@ -43,6 +43,17 @@ export function useMenu() {
     return createdItem;
   }, [loadItems, selectedCategory]);
 
+  const removeMenuItem = useCallback(async (id) => {
+    await deleteMenuItem(id);
+    await loadItems(selectedCategory);
+  }, [loadItems, selectedCategory]);
+
+  const editMenuItem = useCallback(async (id, payload) => {
+    const updatedItem = await updateMenuItem(id, payload);
+    await loadItems(selectedCategory);
+    return updatedItem;
+  }, [loadItems, selectedCategory]);
+
   return {
     categories,
     items,
@@ -52,5 +63,7 @@ export function useMenu() {
     setSelectedCategory,
     refreshMenu,
     addMenuItem,
+    editMenuItem,
+    removeMenuItem,
   };
 }

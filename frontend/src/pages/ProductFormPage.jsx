@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 const initialForm = {
   name: '',
@@ -9,10 +9,14 @@ const initialForm = {
   imageUrl: '',
 };
 
-function ProductFormPage({ categories, onSubmit, onSuccess }) {
+function ProductFormPage({ categories, items, onSubmit, onDelete, onSuccess }) {
+  const formRef = useRef(null);
   const [formData, setFormData] = useState(initialForm);
+  const [editingItemId, setEditingItemId] = useState(null);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteModalItem, setDeleteModalItem] = useState(null);
 
   const handleChange = (field) => (event) => {
     setFormData((current) => ({
@@ -21,15 +25,59 @@ function ProductFormPage({ categories, onSubmit, onSuccess }) {
     }));
   };
 
+  const openDeleteModal = (item) => {
+    setDeleteModalItem(item);
+    setStatus({ type: '', message: '' });
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalItem(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModalItem) return;
+
+    setDeletingId(deleteModalItem.id);
+    setStatus({ type: '', message: '' });
+
+    try {
+      await onDelete(deleteModalItem.id);
+      setStatus({ type: 'success', message: 'Produto deletado com sucesso.' });
+      closeDeleteModal();
+    } catch (deleteError) {
+      setStatus({ type: 'error', message: deleteError.message });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus({ type: '', message: '' });
 
     try {
-      await onSubmit(formData);
-      setStatus({ type: 'success', message: 'Produto cadastrado com sucesso.' });
+      const normalizedPrice = Number.parseFloat(String(formData.price).replace(',', '.'));
+      if (Number.isNaN(normalizedPrice)) {
+        throw new Error('Preco invalido.');
+      }
+
+      const normalizedImageUrl = normalizeImageUrl(formData.imageUrl);
+      const payload = {
+        ...formData,
+        price: Number(normalizedPrice.toFixed(2)),
+        imageUrl: normalizedImageUrl,
+      };
+
+      if (editingItemId) {
+        await onSubmit(editingItemId, payload);
+        setStatus({ type: 'success', message: 'Produto atualizado com sucesso.' });
+      } else {
+        await onSubmit(payload);
+        setStatus({ type: 'success', message: 'Produto cadastrado com sucesso.' });
+      }
       setFormData({ ...initialForm, category: categories[0]?.value ?? 'ENTRADA' });
+      setEditingItemId(null);
       onSuccess();
     } catch (submitError) {
       setStatus({ type: 'error', message: submitError.message });
@@ -38,16 +86,36 @@ function ProductFormPage({ categories, onSubmit, onSuccess }) {
     }
   };
 
+  const handleStartEdit = (item) => {
+    setEditingItemId(item.id);
+    setFormData({
+      name: item.name ?? '',
+      description: item.description ?? '',
+      price: String(item.price ?? ''),
+      ingredients: Array.isArray(item.ingredients) ? item.ingredients.join(', ') : '',
+      category: item.category ?? categories[0]?.value ?? 'ENTRADA',
+      imageUrl: item.imageUrl ?? '',
+    });
+    setStatus({ type: '', message: '' });
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItemId(null);
+    setFormData({ ...initialForm, category: categories[0]?.value ?? 'ENTRADA' });
+    setStatus({ type: '', message: '' });
+  };
+
   return (
     <section className="form-page">
-      <div className="form-card">
+      <div className="form-card admin-product-panel">
         <p className="eyebrow">Painel interno</p>
         <h2>Cadastro do produto</h2>
         <p>
-          Cadastre novos itens do cardapio com nome, preco, ingredientes e categoria.
+          Cadastre novos itens do cardápio com nome, preco, ingredientes e categoria.
         </p>
 
-        <form className="product-form" onSubmit={handleSubmit}>
+        <form ref={formRef} className="product-form" onSubmit={handleSubmit}>
           <label>
             <span>Nome do produto</span>
             <input value={formData.name} onChange={handleChange('name')} required />
@@ -108,8 +176,14 @@ function ProductFormPage({ categories, onSubmit, onSuccess }) {
           </label>
 
           <button className="submit-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : 'Cadastrar produto'}
+            {isSubmitting ? 'Salvando...' : editingItemId ? 'Salvar alteracoes' : 'Cadastrar produto'}
           </button>
+
+          {editingItemId ? (
+            <button className="submit-button cancel-edit-button" type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
+              Cancelar edição
+            </button>
+          ) : null}
 
           {status.message ? (
             <p className={status.type === 'success' ? 'status-message success' : 'status-message error'}>
@@ -117,9 +191,80 @@ function ProductFormPage({ categories, onSubmit, onSuccess }) {
             </p>
           ) : null}
         </form>
+
+        <div className="admin-product-list">
+          <div className="admin-product-list-heading">
+            <h3>Produtos cadastrados</h3>
+            <span>{items.length} itens</span>
+          </div>
+
+          {items.length === 0 ? (
+            <p className="muted-message">Nenhum produto cadastrado.</p>
+          ) : (
+            <div className="admin-product-items">
+              {items.map((item) => (
+                <article key={item.id} className="admin-product-row">
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.categoryLabel} - R$ {Number(item.price).toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="admin-product-actions">
+                    <button
+                      type="button"
+                      className="danger-button"
+                      onClick={() => handleStartEdit(item)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={deletingId === item.id}
+                      onClick={() => openDeleteModal(item)}
+                    >
+                      {deletingId === item.id ? 'Deletando...' : 'Deletar'}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {deleteModalItem ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar exclusão de produto">
+          <div className="modal-content">
+            <h3>Excluir produto?</h3>
+            <p>
+              Ao deletar "{deleteModalItem.name}", ele será removido definitivamente do cardápio e não aparecerá mais para os clientes.
+            </p>
+            {deleteModalItem.imageUrl ? (
+              <div className="menu-confirm-image-wrap">
+                <img className="menu-confirm-image" src={deleteModalItem.imageUrl} alt={deleteModalItem.name} />
+              </div>
+            ) : null}
+            <div className="modal-actions">
+              <button type="button" onClick={handleDelete} disabled={deletingId === deleteModalItem.id}>
+                {deletingId === deleteModalItem.id ? 'Deletando...' : 'Confirmar exclusão'}
+              </button>
+              <button type="button" className="confirm-cancel-button" onClick={closeDeleteModal}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
+}
+
+function normalizeImageUrl(value) {
+  const raw = (value ?? '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  if (raw.startsWith('www.')) return `https://${raw}`;
+  return raw;
 }
 
 export default ProductFormPage;
