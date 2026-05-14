@@ -137,10 +137,6 @@ function AdminUsersPage() {
                   <dd>{selectedUser.email}</dd>
                 </div>
                 <div>
-                  <dt>CPF</dt>
-                  <dd>{selectedUser.cpf}</dd>
-                </div>
-                <div>
                   <dt>Telefone</dt>
                   <dd>{selectedUser.phone}</dd>
                 </div>

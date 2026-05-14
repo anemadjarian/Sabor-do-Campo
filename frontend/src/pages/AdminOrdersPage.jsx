@@ -20,6 +20,20 @@ function formatDate(value) {
   return new Date(value).toLocaleString('pt-BR');
 }
 
+function formatAddress(address) {
+  if (!address) return 'Nenhum endereço cadastrado';
+  return [
+    address.street,
+    address.number,
+    address.neighborhood,
+    address.city,
+    address.state,
+    address.zipCode,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 function statusLabel(status) {
   return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 }
@@ -61,6 +75,14 @@ function AdminOrdersPage() {
   async function handleStatusChange(pedido, nextStatus) {
     setUpdatingId(pedido.id);
     setStatus({ type: '', message: '' });
+    const previousStatus = pedido.status;
+
+    setPedidos((current) =>
+      current.map((item) => (item.id === pedido.id ? { ...item, status: nextStatus } : item))
+    );
+    setSelectedPedido((current) => (
+      current?.id === pedido.id ? { ...current, status: nextStatus } : current
+    ));
 
     try {
       const updatedPedido = await updatePedidoStatus(pedido.id, nextStatus);
@@ -70,6 +92,12 @@ function AdminOrdersPage() {
       setSelectedPedido((current) => (current?.id === updatedPedido.id ? updatedPedido : current));
       setStatus({ type: 'success', message: 'Status atualizado com sucesso.' });
     } catch (error) {
+      setPedidos((current) =>
+        current.map((item) => (item.id === pedido.id ? { ...item, status: previousStatus } : item))
+      );
+      setSelectedPedido((current) => (
+        current?.id === pedido.id ? { ...current, status: previousStatus } : current
+      ));
       setStatus({ type: 'error', message: error.message });
     } finally {
       setUpdatingId(null);
@@ -174,6 +202,19 @@ function AdminOrdersPage() {
                   <dd>{statusLabel(selectedPedido.status)}</dd>
                 </div>
                 <div>
+                  <dt>Produtos</dt>
+                  <dd>{formatCurrency(selectedPedido.subtotalProdutos ?? selectedPedido.precoTotal)}</dd>
+                </div>
+                <div>
+                  <dt>Frete</dt>
+                  <dd>
+                    {formatCurrency(selectedPedido.frete)}
+                    {selectedPedido.distanciaEntregaKm
+                      ? ` (${Number(selectedPedido.distanciaEntregaKm).toFixed(1).replace('.', ',')} km)`
+                      : ''}
+                  </dd>
+                </div>
+                <div>
                   <dt>Total</dt>
                   <dd>{formatCurrency(selectedPedido.precoTotal)}</dd>
                 </div>
@@ -184,6 +225,32 @@ function AdminOrdersPage() {
                   </dd>
                 </div>
               </dl>
+
+              <div className="order-detail-section">
+                <p className="section-title">Endereço de entrega</p>
+                <p className="order-address">
+                  {formatAddress(selectedPedido.enderecoEntrega)}
+                </p>
+              </div>
+
+              <div className="order-detail-section">
+                <p className="section-title">Itens do pedido</p>
+                <div className="order-items-grid">
+                  {(selectedPedido.itens ?? []).map((item) => (
+                    <article key={item.id} className="order-item-card">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.nome} />
+                      ) : (
+                        <div className="order-item-placeholder">Sem imagem</div>
+                      )}
+                      <div>
+                        <strong>{item.nome}</strong>
+                        <span>{formatCurrency(item.preco)}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <p className="muted-message">Selecione um pedido para verificar os dados.</p>

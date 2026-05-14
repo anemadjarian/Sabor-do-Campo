@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { buscarStatusPedido, confirmarEntregaPedido } from '../services/pedidoService';
+import { useMemo, useState } from 'react';
+import { confirmarEntregaPedido } from '../services/pedidoService';
 
 const STATUS_FLOW = [
   'PEDIDO_FEITO',
@@ -29,43 +29,10 @@ function formatCurrency(value) {
   });
 }
 
-function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
-  const [status, setStatus] = useState(pedido?.status ?? 'PEDIDO_FEITO');
+function PedidoStatusPage({ pedido, isLoading = false, onBackToMenu, onStatusChange, onOpenHistorico }) {
+  const currentPedido = pedido;
   const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
-
-  useEffect(() => {
-    setStatus(pedido?.status ?? 'PEDIDO_FEITO');
-  }, [pedido?.id, pedido?.status]);
-
-  useEffect(() => {
-    if (!pedido?.id) return;
-
-    let intervalId;
-    let isMounted = true;
-
-    async function loadStatus() {
-      try {
-        const response = await buscarStatusPedido(pedido.id);
-        if (!isMounted) return;
-        setStatus(response.status);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    loadStatus();
-    intervalId = window.setInterval(loadStatus, 5000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [pedido?.id]);
-
-  useEffect(() => {
-    if (!pedido?.id || !onStatusChange) return;
-    onStatusChange(status);
-  }, [pedido?.id, status, onStatusChange]);
+  const status = currentPedido?.status ?? 'PEDIDO_FEITO';
 
   const currentStep = useMemo(() => STATUS_FLOW.indexOf(status), [status]);
   const safeStep = currentStep < 0 ? 0 : currentStep;
@@ -73,12 +40,12 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
   const canConfirmDelivery = status === 'PEDIDO_EM_ROTA_DE_ENTREGA';
 
   async function handleConfirmDelivery() {
-    if (!pedido?.id) return;
+    if (!currentPedido?.id) return;
 
     try {
       setIsConfirmingDelivery(true);
-      const response = await confirmarEntregaPedido(pedido.id);
-      setStatus(response.status);
+      const response = await confirmarEntregaPedido(currentPedido.id);
+      onStatusChange?.(currentPedido.id, response.status);
     } catch (err) {
       alert(err.message || 'Nao foi possivel confirmar entrega.');
     } finally {
@@ -86,11 +53,26 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
     }
   }
 
-  if (!pedido?.id) {
+  if (isLoading && !currentPedido?.id) {
     return (
       <section className="hero-card">
         <div className="hero-copy">
-          <h2>Nenhum pedido ativo</h2>
+          <h2>Carregando pedidos</h2>
+          <p>Buscando seus pedidos no banco de dados.</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!currentPedido?.id) {
+    return (
+      <section className="hero-card">
+        <div className="hero-copy">
+          <h2>Nenhum pedido encontrado</h2>
+          <p>Quando você fizer um pedido, ele aparecerá aqui.</p>
+          <button className="edit-address-button" onClick={onOpenHistorico}>
+            Ver histórico
+          </button>
           <button className="edit-address-button" onClick={onBackToMenu}>
             Voltar ao cardápio
           </button>
@@ -103,7 +85,7 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
       <section className="hero-card">
         <div className="hero-copy">
           <h2>Status do pedido</h2>
-          <p className="pedido-code">Codigo: {pedido.codigo}</p>
+          <p className="pedido-code">Codigo: {currentPedido.codigo}</p>
         </div>
 
         <div className="menu-panel">
@@ -123,11 +105,17 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
           <div className="pedido-products">
             <div className="pedido-products-heading">
               <h3>Produtos do pedido</h3>
-              <strong>{formatCurrency(pedido.precoTotal)}</strong>
+              <strong>{formatCurrency(currentPedido.precoTotal)}</strong>
             </div>
+            <p className="shipping-note">
+              Produtos: {formatCurrency(currentPedido.subtotalProdutos ?? currentPedido.precoTotal)}
+              {' | '}
+              Frete: {formatCurrency(currentPedido.frete)}
+              {currentPedido.distanciaEntregaKm ? ` (${Number(currentPedido.distanciaEntregaKm).toFixed(1).replace('.', ',')} km estimados)` : ''}
+            </p>
 
             <div className="pedido-products-list">
-              {(pedido.itens ?? []).map((item) => (
+              {(currentPedido.itens ?? []).map((item) => (
                 <div className="pedido-product-row" key={item.id}>
                   <div className="pedido-product-image-wrap">
                     {item.imageUrl ? (
@@ -172,7 +160,12 @@ function PedidoStatusPage({ pedido, onBackToMenu, onStatusChange }) {
                 {isConfirmingDelivery ? 'Confirmando...' : 'Confirmar entrega'}
               </button>
             ) : null}
-
+            <button
+              className="edit-address-button"
+              onClick={onOpenHistorico}
+            >
+              Ver histórico
+            </button>
             <button className="edit-address-button" onClick={onBackToMenu}>
               Voltar ao cardápio
             </button>

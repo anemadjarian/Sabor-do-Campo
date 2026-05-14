@@ -13,6 +13,7 @@ function MenuPage({
   onAddToCart,
   onRequireLogin,
   isLoggedIn,
+  canAddToCart = true,
   onRetry,
 }) {
   const [search, setSearch] = useState('');
@@ -40,9 +41,31 @@ function MenuPage({
     }, {});
   }, [items, search]);
 
-  const sections = Object.entries(groupedItems);
+  const sections = useMemo(() => {
+    const order = categories.map((category) => category.label);
+
+    return Object.entries(groupedItems).sort(([sectionA], [sectionB]) => {
+      const indexA = order.indexOf(sectionA);
+      const indexB = order.indexOf(sectionB);
+
+      if (indexA === -1 && indexB === -1) {
+        return sectionA.localeCompare(sectionB);
+      }
+      if (indexA === -1) {
+        return 1;
+      }
+      if (indexB === -1) {
+        return -1;
+      }
+      return indexA - indexB;
+    });
+  }, [groupedItems, categories]);
 
   const handleOpenConfirm = (item) => {
+    if (!canAddToCart) {
+      return;
+    }
+
     if (!isLoggedIn) {
       onRequireLogin();
       return;
@@ -109,7 +132,12 @@ function MenuPage({
 
                 <div className="menu-grid">
                   {sectionItems.map((item) => (
-                    <MenuItemCard key={item.id} item={item} onAddToCart={handleOpenConfirm} />
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      onAddToCart={handleOpenConfirm}
+                      canAddToCart={canAddToCart}
+                    />
                   ))}
                 </div>
               </section>

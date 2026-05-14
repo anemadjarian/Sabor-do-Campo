@@ -13,7 +13,10 @@ import com.sabordocampo.pedido.dto.PedidoResponse;
 import com.sabordocampo.pedido.dto.PedidoStatusRequest;
 import com.sabordocampo.pedido.dto.PedidoStatusResponse;
 import com.sabordocampo.pedido.repository.PedidoRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -25,14 +28,26 @@ public class PedidoService {
 
     private final ShoppingCartRepository shoppingCartRepository;
     private final PedidoRepository pedidoRepository;
+    private final FreteService freteService;
 
-    public PedidoService(ShoppingCartRepository shoppingCartRepository, PedidoRepository pedidoRepository) {
+    public PedidoService(
+        ShoppingCartRepository shoppingCartRepository,
+        PedidoRepository pedidoRepository,
+        FreteService freteService
+    ) {
         this.shoppingCartRepository = shoppingCartRepository;
         this.pedidoRepository = pedidoRepository;
+        this.freteService = freteService;
     }
 
     @Transactional
     public PedidoResponse criarAPartirDoCarrinho(Long cartId, String email) {
+        if (pedidoRepository.existsByUserEmailAndStatusNot(email, PedidoStatus.PEDIDO_ENTREGUE)) {
+            throw new IllegalStateException(
+                "Voce ja possui um pedido em andamento."
+            );
+        }
+
         ShoppingCart carrinho = shoppingCartRepository.findById(cartId)
             .orElseThrow(() -> new IllegalArgumentException("Carrinho nao encontrado."));
 
@@ -55,6 +70,9 @@ public class PedidoService {
         );
         pedido.setUser(carrinho.getUser());
         pedido.setStatus(PedidoStatus.PEDIDO_FEITO);
+        FreteService.Frete frete = freteService.calcular(carrinho.getAddress());
+        pedido.setFrete(frete.valor());
+        pedido.setDistanciaEntregaKm(frete.distanciaKm());
 
         for (CartItem cartItem : carrinho.getItems()) {
             PedidoItem pedidoItem = new PedidoItem(
@@ -101,15 +119,15 @@ public class PedidoService {
 
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarMeusPedidos(String email) {
-        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
+        return pedidoRepository.findByUserEmailAndStatusOrderByCriadoEmDesc(email, PedidoStatus.PEDIDO_ENTREGUE).stream()
             .map(this::toPedidoResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public PedidoResponse buscarPedidoAtivo(String email) {
-        return pedidoRepository.findByUserEmailOrderByCriadoEmDesc(email).stream()
-            .filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
+        return pedidoRepository.findByUserEmailAndStatusNotOrderByCriadoEmDesc(email, PedidoStatus.PEDIDO_ENTREGUE).stream()
+            //.filter(pedido -> calcularStatus(pedido) != PedidoStatus.PEDIDO_ENTREGUE)
             .findFirst()
             .map(this::toPedidoResponse)
             .orElse(null);
@@ -151,6 +169,9 @@ public class PedidoService {
         List<PedidoItemResponse> itens = pedido.getItens().stream()
             .map(this::toPedidoItemResponse)
             .toList();
+        BigDecimal subtotalProdutos = pedido.getSubtotalProdutos();
+        FreteService.Frete frete = freteDoPedido(pedido);
+        BigDecimal valorFrete = frete.valor() == null ? BigDecimal.ZERO : frete.valor();
 
         return new PedidoResponse(
             pedido.getId(),
@@ -159,11 +180,26 @@ public class PedidoService {
             calcularStatus(pedido),
             itens,
             toAddressResponse(pedido.getEnderecoEntrega()),
-            pedido.getPrecoTotal(),
+            subtotalProdutos,
+            valorFrete,
+            frete.distanciaKm(),
+            subtotalProdutos.add(valorFrete),
             pedido.getUser() == null ? null : pedido.getUser().getId(),
             pedido.getUser() == null ? "Usuario removido" : pedido.getUser().getName(),
             pedido.getUser() == null ? "" : pedido.getUser().getEmail()
         );
+    }
+
+    private FreteService.Frete freteDoPedido(Pedido pedido) {
+        if (pedido.getDistanciaEntregaKm() == null && temCep(pedido.getEnderecoEntrega())) {
+            return freteService.calcular(pedido.getEnderecoEntrega());
+        }
+
+        return new FreteService.Frete(pedido.getFrete(), pedido.getDistanciaEntregaKm());
+    }
+
+    private boolean temCep(Address address) {
+        return address != null && address.getZipCode() != null && !address.getZipCode().isBlank();
     }
 
     private PedidoItemResponse toPedidoItemResponse(PedidoItem item) {

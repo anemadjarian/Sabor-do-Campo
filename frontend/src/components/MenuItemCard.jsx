@@ -1,4 +1,4 @@
-function MenuItemCard({ item, onAddToCart }) {
+function MenuItemCard({ item, onAddToCart, canAddToCart = true }) {
   return (
     <article className="menu-card">
       <div className="menu-card-image-wrapper">
@@ -20,9 +20,11 @@ function MenuItemCard({ item, onAddToCart }) {
         ) : null}
         <div className="menu-card-footer">
           <strong>R$ {Number(item.price).toFixed(2).replace('.', ',')}</strong>
-          <button type="button" onClick={() => onAddToCart(item)}>
-            Adicionar
-          </button>
+          {canAddToCart ? (
+            <button type="button" onClick={() => onAddToCart(item)}>
+              Adicionar
+            </button>
+          ) : null}
         </div>
       </div>
     </article>

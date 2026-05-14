@@ -2,6 +2,8 @@ import { useState } from 'react';
 import AddressModal from '../components/AddressModal';
 import CartItemCard from '../components/CartItemCard';
 import { updateCartAddress } from '../services/cartService';
+import { calculateDeliveryFee } from '../services/shippingService';
+import { notifyError } from '../services/notificationService';
 
 function ShoppingCartPage({
   items,
@@ -10,19 +12,20 @@ function ShoppingCartPage({
   onRequireLogin,
   onAddressUpdate,
   onRemoveItem,
-  onConfirmarPedido
+  onConfirmarPedido,
+  hasActivePedido
 }) {
 
   const [showModal, setShowModal] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const DEFAULT_SHIPPING_PRICE = 10
-    
-  const total = items.reduce((sum, item) => sum + item.price, 0) + DEFAULT_SHIPPING_PRICE;
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
+  const shipping = calculateDeliveryFee(address);
+  const total = subtotal + shipping.price;
 
   async function handleSaveAddress(newAddress) {
     if (!isLoggedIn) {
-      alert('Voce precisa estar logado para cadastrar endereco.');
+      notifyError('Voce precisa estar logado para cadastrar endereco.');
       onRequireLogin?.();
       return;
     }
@@ -34,8 +37,20 @@ function ShoppingCartPage({
 
   async function handleConfirmarPedido() {
     if (!isLoggedIn) {
-      alert('Voce precisa estar logado para confirmar o pedido.');
+      notifyError('Voce precisa estar logado para confirmar o pedido.');
       onRequireLogin?.();
+      return;
+    }
+
+    if (
+      !address ||
+      !address.street ||
+      !address.number ||
+      !address.neighborhood ||
+      !address.city ||
+      !address.state
+    ) {
+      notifyError('Informe o endereco de entrega antes de confirmar o pedido.');
       return;
     }
 
@@ -43,7 +58,7 @@ function ShoppingCartPage({
       setIsConfirming(true);
       await onConfirmarPedido();
     } catch (err) {
-      alert(err.message || 'Nao foi possivel confirmar o pedido.');
+      notifyError(err.message || 'Nao foi possivel confirmar o pedido.');
     } finally {
       setIsConfirming(false);
     }
@@ -88,11 +103,18 @@ function ShoppingCartPage({
             ))}
           </div>
           <div className="cart-total">
-            <h3>Total (R$ {DEFAULT_SHIPPING_PRICE.toFixed(2).replace('.', ',')} de Frete)</h3>
+            <div>
+              <h3>Total</h3>
+              <p className="shipping-note">
+                Frete: R$ {shipping.price.toFixed(2).replace('.', ',')}
+                {shipping.distanceKm ? ` (${shipping.label})` : ` - ${shipping.label}`}
+              </p>
+            </div>
             <strong>R$ {total.toFixed(2).replace('.', ',')}</strong>
           </div>
-          <button className="edit-address-button" onClick={handleConfirmarPedido} disabled={isConfirming}>
-            {!isLoggedIn ? 'Entrar para confirmar pedido' : isConfirming ? 'Confirmando...' : 'Confirmar pedido'}
+          <button className="edit-address-button" onClick={handleConfirmarPedido} disabled={isConfirming || hasActivePedido}>
+            { hasActivePedido ? 'Você já possui um pedido em andamento' :
+            !isLoggedIn ? 'Entrar para confirmar pedido' : isConfirming ? 'Confirmando...' : 'Confirmar pedido'}
           </button>
         </>
       )}

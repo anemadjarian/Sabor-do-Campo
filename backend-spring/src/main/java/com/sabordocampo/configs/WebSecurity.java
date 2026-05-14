@@ -36,6 +36,8 @@ public class WebSecurity {
                 .requestMatchers(HttpMethod.GET, "/api/menu-items").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/menu-items/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/menu-items").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/menu-items/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/menu-items/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                 .requestMatchers("/api/carts/me/**").authenticated()

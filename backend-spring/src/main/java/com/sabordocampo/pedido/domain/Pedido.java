@@ -51,6 +51,12 @@ public class Pedido {
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> itens = new ArrayList<>();
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal frete = BigDecimal.ZERO;
+
+    @Column(precision = 8, scale = 2)
+    private BigDecimal distanciaEntregaKm;
+
     protected Pedido() {
     }
 
@@ -110,12 +116,32 @@ public class Pedido {
         itens.add(item);
     }
 
+    public BigDecimal getFrete() {
+        return frete == null ? BigDecimal.ZERO : frete;
+    }
+
+    public void setFrete(BigDecimal frete) {
+        this.frete = frete == null ? BigDecimal.ZERO : frete;
+    }
+
+    public BigDecimal getDistanciaEntregaKm() {
+        return distanciaEntregaKm;
+    }
+
+    public void setDistanciaEntregaKm(BigDecimal distanciaEntregaKm) {
+        this.distanciaEntregaKm = distanciaEntregaKm;
+    }
+
     public void confirmarEntrega(LocalDateTime entregueEm) {
         this.entregueEm = entregueEm;
         this.status = PedidoStatus.PEDIDO_ENTREGUE;
     }
 
     public BigDecimal getPrecoTotal() {
+        return getSubtotalProdutos().add(getFrete());
+    }
+
+    public BigDecimal getSubtotalProdutos() {
         return itens.stream()
             .map(PedidoItem::getPrice)
             .reduce(BigDecimal.ZERO, BigDecimal::add);

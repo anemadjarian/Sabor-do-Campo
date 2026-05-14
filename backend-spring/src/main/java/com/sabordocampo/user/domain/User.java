@@ -169,4 +169,12 @@ public class User implements UserDetails {
         this.address = address;
     }
 
+    public ShoppingCart getCart() {
+        return cart;
+    }
+
+    public void setCart(ShoppingCart cart) {
+        this.cart = cart;
+    }
+
 }
