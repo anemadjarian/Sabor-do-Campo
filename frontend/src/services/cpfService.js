@@ -1,37 +1,21 @@
-export async function validateCpf(cpf) {
-  const normalizedCpf = cpf.replace(/\D/g, '');
+export async function validateCpf(value) {
+  const cpf = value.replace(/\D/g, "");
 
-  if (normalizedCpf.length !== 11) {
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
     return false;
   }
 
-  if (/^(\d)\1+$/.test(normalizedCpf)) {
-    return false;
-  }
+  const firstDigit = calculateDigit(cpf.slice(0, 9), 10);
+  const secondDigit = calculateDigit(cpf.slice(0, 10), 11);
 
-  function calculateDigit(cpfSlice, factor) {
-    let total = 0;
+  return cpf === `${cpf.slice(0, 9)}${firstDigit}${secondDigit}`;
+}
 
-    for (let i = 0; i < cpfSlice.length; i += 1) {
-      total += Number(cpfSlice[i]) * factor--;
-    }
+function calculateDigit(base, weight) {
+  const sum = base
+    .split("")
+    .reduce((total, digit) => total + Number(digit) * weight--, 0);
+  const rest = (sum * 10) % 11;
 
-    const remainder = (total * 10) % 11;
-
-    return remainder === 10 ? 0 : remainder;
-  }
-
-  const firstDigit = calculateDigit(normalizedCpf.slice(0, 9), 10);
-
-  if (firstDigit !== Number(normalizedCpf[9])) {
-    return false;
-  }
-
-  const secondDigit = calculateDigit(normalizedCpf.slice(0, 10), 11);
-
-  if (secondDigit !== Number(normalizedCpf[10])) {
-    return false;
-  }
-
-  return true;
+  return rest === 10 ? 0 : rest;
 }
