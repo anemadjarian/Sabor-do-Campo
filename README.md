@@ -75,11 +75,15 @@ Servidor local esperado:
 
 As configurações também podem ser alteradas por variáveis de ambiente:
 
+- `MYSQL_URL`
 - `MYSQL_HOST`
 - `MYSQL_PORT`
 - `MYSQL_DATABASE`
 - `MYSQL_USER`
 - `MYSQL_PASSWORD`
+
+Para banco hospedado, use preferencialmente `MYSQL_URL` quando o provedor entregar
+uma URL JDBC completa ou exigir parÃ¢metros extras, como SSL.
 
 ---
 
