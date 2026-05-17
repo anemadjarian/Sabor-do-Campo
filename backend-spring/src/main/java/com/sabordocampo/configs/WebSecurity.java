@@ -1,9 +1,11 @@
 package com.sabordocampo.configs;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,9 +18,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class WebSecurity {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final String corsAllowedOrigins;
 
-    public WebSecurity(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public WebSecurity(
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String corsAllowedOrigins
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.corsAllowedOrigins = corsAllowedOrigins;
     }
     
     @Bean
@@ -54,7 +61,12 @@ public class WebSecurity {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173"));
+        List<String> allowedOrigins = List.of(corsAllowedOrigins.split(","))
+            .stream()
+            .map(String::trim)
+            .filter(origin -> !origin.isBlank())
+            .collect(Collectors.toList());
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("*"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
